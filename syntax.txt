@@ -1,0 +1,43 @@
+
+program
+    = {id_def}
+id_def
+    = ID '=' expr
+
+expr
+    = let_expr
+    | if_expr
+    | fn_expr
+    | comp_expr
+    | bin_expr
+    | ';'
+    | NEWLINE
+let_expr
+    = LET id_def
+if_expr
+    = IF expr THEN expr [ELSE expr]
+fn_expr
+    | FN params '->' expr
+params
+    = {ID}
+comp_expr
+    = '{' {expr} '}'
+
+bin_expr
+    = apply_expr {bin_op apply_expr}
+apply_expr
+    = unary_expr {simple_expr}
+unary_expr
+    = [unary_op] simple_expr
+simple_expr
+    = ID
+    | BOOL_LIT | INT_LIT | CHAR_LIT | FLOAT_LIT | STRING_LIT 
+    | '(' expr ')' | list_expr | '[]'
+list_expr
+    = '[' [expr {',' expr}] ']'
+
+bin_op = '||' | '&&'
+    | '==' | '!=' | '<' | '<=' | '>' | '>='
+    | '+' | '-' | '*' | '/' | '%'
+unary_op = '!' | '-' | '&' | '*'
+
