@@ -16,6 +16,10 @@ type token_decl =
 
 type token = token_decl * source_pos
 
+type binop = BinAdd | BinSub | BinMul | BinDiv | BinMod | BinLT | BinLE | BinGT | BinGE
+    | BinEql | BinNeq | BinLOr | BinLAnd | BinCons | BinOp of string
+type unop = UNot | UMinus
+
 type expr_decl =
     | ENull | EUnit
     | ESeq of expr list
@@ -24,8 +28,8 @@ type expr_decl =
     | ECond of expr * expr * expr
     | ELambda of string * expr
     | EApply of expr * expr
-    | EUnary of string * expr
-    | EBinary of string * expr * expr
+    | EUnary of unop * expr
+    | EBinary of binop * expr * expr
     | EId of string
     | ELit of lit
 
@@ -77,6 +81,13 @@ let s_token = function
     | LBrace -> "{" | RBrace -> "}" | LParen -> "(" | RParen -> ")" | LBracket -> "["
     | RBracket -> "]" | RArrow -> "->" 
 
+let s_binop = function
+    | BinAdd -> "+" | BinSub -> "-" | BinMul -> "*" | BinDiv -> "/" | BinMod -> "%"
+    | BinLT -> "<" | BinLE -> "<=" | BinGT -> ">" | BinGE -> ">=" | BinEql -> "=="
+    | BinNeq -> "!=" | BinLOr -> "||" | BinLAnd -> "&&" | BinCons -> "::"
+    | BinOp op -> op
+let s_unop = function UNot -> "!" | UMinus -> "-"
+
 let rec s_expr = function
     | (ENull, _) -> "[]"
     | (EUnit, _) -> "()"
@@ -86,8 +97,8 @@ let rec s_expr = function
     | (ECond (c, t, e), _) -> "(cond " ^ s_expr c ^ " then " ^ s_expr t ^ " else " ^ s_expr e ^ ")"
     | (ELambda (a, b), _) -> "(lambda " ^ a ^ " -> " ^ s_expr b ^ ")"
     | (EApply (f, a), _) -> "(apply " ^ s_expr f ^ " " ^ s_expr a ^ ")"
-    | (EUnary (op, e), _) -> "(unary '" ^ op ^ "' " ^ s_expr e ^ ")"
-    | (EBinary (op, l, r), _) -> "(binary '" ^ op ^ "' " ^ s_expr l ^ " " ^ s_expr r ^ ")"
+    | (EUnary (op, e), _) -> "(unary '" ^ s_unop op ^ "' " ^ s_expr e ^ ")"
+    | (EBinary (op, l, r), _) -> "(binary '" ^ s_binop op ^ "' " ^ s_expr l ^ " " ^ s_expr r ^ ")"
     | (EId s, _) -> s
     | (ELit l, _) -> s_lit l
 and s_exprlist sep = s_list s_expr sep
@@ -113,6 +124,13 @@ let s_token_src = function
 
 let s_token_src_list toks = "[" ^ s_list (fun (x, _) -> s_token_src x) "; " toks ^ "]"
 
+let s_binop_src = function
+    | BinAdd -> "BinAdd" | BinSub -> "BinSub" | BinMul -> "BinMul" | BinDiv -> "BinDiv" | BinMod -> "BinMod"
+    | BinLT -> "BinLT" | BinLE -> "BinLE" | BinGT -> "BinGT" | BinGE -> "BinGE" | BinEql -> "BinEql"
+    | BinNeq -> "BinNeq" | BinLOr -> "BinLOr" | BinLAnd -> "BinLAnd" | BinCons -> "BinCons"
+    | BinOp op -> "BinOp " ^ quote op
+let s_unop_src = function UNot -> "UNot" | UMinus -> "UMinus"
+
 let rec s_expr_src = function
     | (ENull, _) -> "ENull"
     | (EUnit, _) -> "EUnit"
@@ -122,8 +140,8 @@ let rec s_expr_src = function
     | (ECond (c, t, e), _) -> "(ECond (" ^ s_expr_src c ^ ", " ^ s_expr_src t ^ ", " ^ s_expr_src e ^ "))"
     | (ELambda (a, b), _) -> "(ELambda (" ^ quote a ^ ", " ^ s_expr_src b ^ "))"
     | (EApply (f, a), _) -> "(EApply (" ^ s_expr_src f ^ ", " ^ s_expr_src a ^ "))"
-    | (EUnary (op, e), _) -> "(EUnary (" ^ quote op ^ ", " ^ s_expr_src e ^ "))"
-    | (EBinary (op, l, r), _) -> "(EBinary (" ^ quote op ^ ", " ^ s_expr_src l ^ ", " ^ s_expr_src r ^ "))"
+    | (EUnary (op, e), _) -> "(EUnary (" ^ s_unop_src op ^ ", " ^ s_expr_src e ^ "))"
+    | (EBinary (op, l, r), _) -> "(EBinary (" ^ s_binop_src op ^ ", " ^ s_expr_src l ^ ", " ^ s_expr_src r ^ "))"
     | (EId s, _) -> "(EId " ^ quote s ^ ")"
     | (ELit l, _) -> "(ELit (" ^ s_lit_src l ^ "))"
 and s_exprlist_src el = "[" ^ s_list s_expr_src "; " el ^ "]"

@@ -82,11 +82,17 @@ let is_apply e pars =
             | _ -> false)
     | _ -> false
 
+let token_to_op = function
+    | DColon -> BinCons | LOr -> BinLOr | LAnd -> BinLAnd | Eql -> BinEql | Neq -> BinNeq
+    | LT -> BinLT | LE -> BinLE | GT -> BinGT | GE -> BinGE | Plus -> BinAdd | Minus -> BinSub
+    | Star -> BinMul | Slash -> BinDiv | Percent -> BinMod | Op op -> BinOp op
+    | _ -> failwith "bug"
+
 let priority = function
-    | "&&" | "||" -> -2
-    | "==" | "!=" | "<" | "<=" | ">" | ">=" -> -1
-    | "+" | "-" -> 0
-    | "*" | "/" | "%" -> 1
+    | BinLAnd | BinLOr -> -2
+    | BinEql | BinNeq | BinLT | BinLE | BinGT | BinGE -> -1
+    | BinAdd | BinSub -> 0
+    | BinMul | BinDiv | BinMod -> 1
     | _ -> 4
 
 let can_swap op1 op2 =
@@ -95,7 +101,7 @@ let can_swap op1 op2 =
     if p1 < p2 then
         true
     else if p1 = p2 then
-        op1 <> "::"
+        op1 <> BinCons
     else
         false
 
@@ -133,7 +139,7 @@ let rec parse_list_expr pars =
     next_token pars;
     skip_newline pars;
     let el = aux [] pars in
-    let res = List.fold_right (fun a b -> make_expr (EBinary ("::", a, b)) pos) el (ENull, pos)
+    let res = List.fold_right (fun a b -> make_expr (EBinary (BinCons, a, b)) pos) el (ENull, pos)
     in
     debug_parse_out @@ "parse_list_expr: " ^ s_expr_src res;
     res
@@ -196,14 +202,15 @@ and parse_unary_expr pars =
     let pos = get_pos pars in
     let op =
         match peek_token pars with
-        | Not -> next_token pars; "!"
-        | Minus -> next_token pars; "-"
-        | _ -> ""
+        | Not -> next_token pars; Some UNot
+        | Minus -> next_token pars; Some UMinus
+        | _ -> None
     in
     let expr = parse_simple_expr pars in
     let res =
-        if op = "" then expr
-        else make_expr (EUnary (op, expr)) pos
+        match op with
+        | None -> expr
+        | Some uop -> make_expr (EUnary (uop, expr)) pos
     in
     debug_parse_out @@ "parse_unary_expr: " ^ s_expr_src res;
     res
@@ -234,22 +241,12 @@ bin_expr
     = apply_expr {bin_op apply_expr}
 *)
 and parse_bin_expr pars =
-    let token_to_op = function
-        | DColon -> "::" | LOr -> "||" | LAnd -> "&&" | Eql -> "==" | Neq -> "!="
-        | LT -> "<" | LE -> "<=" | GT -> ">" | GE -> ">=" | Plus -> "+" | Minus -> "-"
-        | Star -> "*" | Slash -> "/" | Percent -> "^" | _ -> failwith "bug"
-    in
     debug_parse_in @@ "parse_bin_expr: " ^ s_token_src_list pars.toks;
     let rec parse_rhs lhs pars =
         match peek_token pars with
         | DColon | LOr | LAnd | Eql | Neq | LT | LE | GT | GE | Plus
-        | Minus | Star | Slash | Percent as t ->
+        | Minus | Star | Slash | Percent | Op _ as t ->
             let op = token_to_op t in
-            next_token pars;
-            skip_newline pars;
-            let rhs = parse_expr pars in
-            parse_rhs (make_binop op lhs rhs) pars
-        | Op op ->
             next_token pars;
             skip_newline pars;
             let rhs = parse_expr pars in
