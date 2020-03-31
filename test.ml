@@ -136,26 +136,28 @@ let parser_test_texts = [
     ("_ = fn () -> 0",          "(ESeq [(ELet (\"_\", (ELambda (\"()\", (ELit (Int 0))))))])");
     ("_ = 1 ? 2 : 3",           "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
     ("_ = 1 ?\n 2\n :\n 3",     "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
-    ("_ = 1 + 2",               "(ESeq [(ELet (\"_\", (EBinary (\"+\", (ELit (Int 1)), (ELit (Int 2))))))])");
-    ("_ = 1 + 2 * 3",           "(ESeq [(ELet (\"_\", (EBinary (\"+\", (ELit (Int 1)), (EBinary (\"*\", (ELit (Int 2)), (ELit (Int 3))))))))])");
-    ("_ = 1 - 2 * 3 + 4",       "(ESeq [(ELet (\"_\", (EBinary (\"+\", (EBinary (\"-\", (ELit (Int 1)), (EBinary (\"*\", (ELit (Int 2)), (ELit (Int 3)))))), (ELit (Int 4))))))])");
-    ("_ = 1 - 2 < 3 - 4",       "(ESeq [(ELet (\"_\", (EBinary (\"<\", (EBinary (\"-\", (ELit (Int 1)), (ELit (Int 2)))), (EBinary (\"-\", (ELit (Int 3)), (ELit (Int 4))))))))])");
-    ("_ = 1 :: 2 :: 3", "(ESeq [(ELet (\"_\", (EBinary (\"::\", (ELit (Int 1)), (EBinary (\"::\", (ELit (Int 2)), (ELit (Int 3))))))))])");
+    ("_ = 1 + 2",               "(ESeq [(ELet (\"_\", (EBinary (BinAdd, (ELit (Int 1)), (ELit (Int 2))))))])");
+    ("_ = 1 + 2 * 3",           "(ESeq [(ELet (\"_\", (EBinary (BinAdd, (ELit (Int 1)), (EBinary (BinMul, (ELit (Int 2)), (ELit (Int 3))))))))])");
+    ("_ = 1 - 2 * 3 + 4",       "(ESeq [(ELet (\"_\", (EBinary (BinAdd, (EBinary (BinSub, (ELit (Int 1)), (EBinary (BinMul, (ELit (Int 2)), (ELit (Int 3)))))), (ELit (Int 4))))))])");
+    ("_ = 1 - 2 < 3 - 4",       "(ESeq [(ELet (\"_\", (EBinary (BinLT, (EBinary (BinSub, (ELit (Int 1)), (ELit (Int 2)))), (EBinary (BinSub, (ELit (Int 3)), (ELit (Int 4))))))))])");
+    ("_ = 1 :: 2 :: 3", "(ESeq [(ELet (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (ELit (Int 3))))))))])");
     ("_ = 1 :: 2 :: [3]",
-        "(ESeq [(ELet (\"_\", (EBinary (\"::\", (ELit (Int 1)), (EBinary (\"::\", (ELit (Int 2)), (EList [(ELit (Int 3))])))))))])");
+        "(ESeq [(ELet (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))])");
     ("_ = 1 :: 2 :: []",
-        "(ESeq [(ELet (\"_\", (EBinary (\"::\", (ELit (Int 1)), (EBinary (\"::\", (ELit (Int 2)), ENull))))))])");
+        "(ESeq [(ELet (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), ENull))))))])");
     ("_ = foo ()",              "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), EUnit))))])");
     ("_ = foo 1",               "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
     ("_ = foo 1 2",             "(ESeq [(ELet (\"_\", (EApply ((EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
     ("_ = foo (1)",             "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
-    ("_ = foo [1,2]",           "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (EList [(ELit (Int 1)); (ELit (Int 2))])))))])");
-    ("_ = foo 1::2",            "(ESeq [(ELet (\"_\", (EBinary (\"::\", (EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
-    ("_ = foo (1::2)",          "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (EBinary (\"::\", (ELit (Int 1)), (ELit (Int 2))))))))])");
-    ("_ = -11",                 "(ESeq [(ELet (\"_\", (EUnary (\"-\", (ELit (Int 11))))))])");
-    ("_ = !2",                  "(ESeq [(ELet (\"_\", (EUnary (\"!\", (ELit (Int 2))))))])");
+    ("_ = foo [1,2]",
+        "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), ENull))))))))])");
+    ("_ = foo 1::2",            "(ESeq [(ELet (\"_\", (EBinary (BinCons, (EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
+    ("_ = foo (1::2)",          "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (EBinary (BinCons, (ELit (Int 1)), (ELit (Int 2))))))))])");
+    ("_ = -11",                 "(ESeq [(ELet (\"_\", (EUnary (UMinus, (ELit (Int 11))))))])");
+    ("_ = !2",                  "(ESeq [(ELet (\"_\", (EUnary (UNot, (ELit (Int 2))))))])");
     ("_ = a",                   "(ESeq [(ELet (\"_\", (EId \"a\")))])");
-    ("_ = [1,2,3]",             "(ESeq [(ELet (\"_\", (EList [(ELit (Int 1)); (ELit (Int 2)); (ELit (Int 3))])))])");
+    ("_ = [1,2,3]",
+        "(ESeq [(ELet (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))])");
     ("_ = [ ]",                 "(ESeq [(ELet (\"_\", ENull))])");
     ("_ = []",                  "(ESeq [(ELet (\"_\", ENull))])");
     ("_ = 'a'",                 "(ESeq [(ELet (\"_\", (ELit (Char 'a'))))])");
