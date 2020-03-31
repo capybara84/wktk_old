@@ -28,7 +28,6 @@ type expr_decl =
     | EBinary of string * expr * expr
     | EId of string
     | ELit of lit
-    | EList of expr list
 
 and expr = expr_decl * source_pos
 
@@ -91,7 +90,6 @@ let rec s_expr = function
     | (EBinary (op, l, r), _) -> "(binary '" ^ op ^ "' " ^ s_expr l ^ " " ^ s_expr r ^ ")"
     | (EId s, _) -> s
     | (ELit l, _) -> s_lit l
-    | (EList el, _) -> "(list " ^ s_exprlist ", " el ^ ")"
 and s_exprlist sep = s_list s_expr sep
 
 let s_lit_src = function
@@ -128,6 +126,5 @@ let rec s_expr_src = function
     | (EBinary (op, l, r), _) -> "(EBinary (" ^ quote op ^ ", " ^ s_expr_src l ^ ", " ^ s_expr_src r ^ "))"
     | (EId s, _) -> "(EId " ^ quote s ^ ")"
     | (ELit l, _) -> "(ELit (" ^ s_lit_src l ^ "))"
-    | (EList el, _) -> "(EList " ^ s_exprlist_src el ^ ")"
 and s_exprlist_src el = "[" ^ s_list s_expr_src "; " el ^ "]"
 

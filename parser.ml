@@ -133,9 +133,7 @@ let rec parse_list_expr pars =
     next_token pars;
     skip_newline pars;
     let el = aux [] pars in
-    let res =
-        if el = [] then make_expr ENull pos
-        else make_expr (EList el) pos
+    let res = List.fold_right (fun a b -> make_expr (EBinary ("::", a, b)) pos) el (ENull, pos)
     in
     debug_parse_out @@ "parse_list_expr: " ^ s_expr_src res;
     res
