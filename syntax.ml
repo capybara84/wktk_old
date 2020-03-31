@@ -8,13 +8,15 @@ exception Error of string * source_pos * string
 
 type lit = Int of int | Char of char | Float of float | String of string
 
-type token =
+type token_decl =
     | Eof | Newline | Id of string | Lit of lit | Op of string | Let | If | Then | Else | Fn
     | Semi | Colon | DColon | Comma | Dot | Null | Unit | Vertical | Ques | Eq | LOr | LAnd
     | Eql | Neq | LT | LE | GT | GE | Plus | Minus | Star | Slash | Percent | Not
     | LBrace | RBrace | LParen | RParen | LBracket | RBracket | RArrow
 
-type expr =
+type token = token_decl * source_pos
+
+type expr_decl =
     | ENull | EUnit
     | ESeq of expr list
     | EFunc of string * string * expr
@@ -25,7 +27,10 @@ type expr =
     | EUnary of string * expr
     | EBinary of string * expr * expr
     | EId of string
+    | ELit of lit
     | EList of expr list
+
+and expr = expr_decl * source_pos
 
 
 let id x = x
@@ -73,8 +78,23 @@ let s_token = function
     | LBrace -> "{" | RBrace -> "}" | LParen -> "(" | RParen -> ")" | LBracket -> "["
     | RBracket -> "]" | RArrow -> "->" 
 
+let rec s_expr = function
+    | (ENull, _) -> "[]"
+    | (EUnit, _) -> "()"
+    | (ESeq el, _) -> "{ " ^ s_exprlist "; " el ^ " }"
+    | (EFunc (s, a, e), _) -> "(func " ^ s ^ " " ^ a ^ " = " ^ s_expr e ^ ")"
+    | (ELet (s, e), _) -> "(let " ^ s ^ " = " ^ s_expr e ^ ")"
+    | (ECond (c, t, e), _) -> "(cond " ^ s_expr c ^ " then " ^ s_expr t ^ " else " ^ s_expr e ^ ")"
+    | (ELambda (a, b), _) -> "(lambda " ^ a ^ " -> " ^ s_expr b ^ ")"
+    | (EApply (f, a), _) -> "(apply " ^ s_expr f ^ " " ^ s_expr a ^ ")"
+    | (EUnary (op, e), _) -> "(unary '" ^ op ^ "' " ^ s_expr e ^ ")"
+    | (EBinary (op, l, r), _) -> "(binary '" ^ op ^ "' " ^ s_expr l ^ " " ^ s_expr r ^ ")"
+    | (EId s, _) -> s
+    | (ELit l, _) -> s_lit l
+    | (EList el, _) -> "(list " ^ s_exprlist ", " el ^ ")"
+and s_exprlist sep = s_list s_expr sep
 
-let src_lit = function
+let s_lit_src = function
     | Int i -> "Int " ^ string_of_int i
     | Char c -> "Char '" ^ escape_char c ^ "'"
     | Float f -> "Float " ^ string_of_float f
@@ -82,7 +102,7 @@ let src_lit = function
 
 let s_token_src = function
     | Eof -> "Eof" | Newline -> "Newline" | Id id -> "Id " ^ quote id
-    | Lit l -> "Lit (" ^ src_lit l ^ ")" | Op s -> "Op " ^ quote s
+    | Lit l -> "Lit (" ^ s_lit_src l ^ ")" | Op s -> "Op " ^ quote s
     | Let -> "Let" | If -> "If" | Then -> "Then" | Else -> "Else" | Fn -> "Fn"
     | Semi -> "Semi" | Colon -> "Colon" | DColon -> "DColon" | Comma -> "Comma"
     | Dot -> "Dot" | Null -> "Null" | Unit -> "Unit" | Vertical -> "Vertical"
@@ -92,4 +112,22 @@ let s_token_src = function
     | Percent -> "Percent" | Not -> "Not"
     | LBrace -> "LBrace" | RBrace -> "RBrace" | LParen -> "LParen"
     | RParen -> "RParen" | LBracket -> "LBracket" | RBracket -> "RBracket" | RArrow -> "RArrow" 
+
+let s_token_src_list toks = "[" ^ s_list (fun (x, _) -> s_token_src x) "; " toks ^ "]"
+
+let rec s_expr_src = function
+    | (ENull, _) -> "ENull"
+    | (EUnit, _) -> "EUnit"
+    | (ESeq el, _) -> "(ESeq " ^ s_exprlist_src el ^ ")"
+    | (EFunc (s, a, e), _) -> "(EFunc (" ^ quote s ^ ", " ^ quote a ^ ", " ^ s_expr_src e ^ "))"
+    | (ELet (s, e), _) -> "(ELet (" ^ quote s ^ ", " ^ s_expr_src e ^ "))"
+    | (ECond (c, t, e), _) -> "(ECond (" ^ s_expr_src c ^ ", " ^ s_expr_src t ^ ", " ^ s_expr_src e ^ "))"
+    | (ELambda (a, b), _) -> "(ELambda (" ^ quote a ^ ", " ^ s_expr_src b ^ "))"
+    | (EApply (f, a), _) -> "(EApply (" ^ s_expr_src f ^ ", " ^ s_expr_src a ^ "))"
+    | (EUnary (op, e), _) -> "(EUnary (" ^ quote op ^ ", " ^ s_expr_src e ^ "))"
+    | (EBinary (op, l, r), _) -> "(EBinary (" ^ quote op ^ ", " ^ s_expr_src l ^ ", " ^ s_expr_src r ^ "))"
+    | (EId s, _) -> "(EId " ^ quote s ^ ")"
+    | (ELit l, _) -> "(ELit (" ^ s_lit_src l ^ "))"
+    | (EList el, _) -> "(EList " ^ s_exprlist_src el ^ ")"
+and s_exprlist_src el = "[" ^ s_list s_expr_src "; " el ^ "]"
 

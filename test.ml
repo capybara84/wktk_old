@@ -1,5 +1,6 @@
 open Syntax
 module L = Lexer
+module P = Parser
 
 let color c s = "\x1b[3" ^ (string_of_int c) ^ "m" ^ s ^ "\x1b[0m"
 let red = color 1 and green = color 2 and yellow = color 3 and blue = color 4
@@ -111,9 +112,90 @@ let lexer_test verbose =
             ) lexer_test_tokens tokens;
         print_newline ()
     with Invalid_argument s -> test_fail @@ "Invalid_argument: " ^ s
-        | Error (filename, pos, msg) -> test_fail @@ Printf.sprintf "%s, line=%d, col=%d: %s" filename pos.line pos.col msg)
+        | Error (filename, pos, msg) -> test_fail @@ Printf.sprintf "%s, line=%d, col=%d: Error: %s" filename pos.line pos.col msg)
 
+
+let parser_test_texts = [
+    (";",                       "(ESeq [])");
+    ("x = 0",                   "(ESeq [(ELet (\"x\", (ELit (Int 0))))])");
+    ("x = 0; y = 1",            "(ESeq [(ELet (\"x\", (ELit (Int 0)))); (ELet (\"y\", (ELit (Int 1))))])");
+    ("_ = let x = 0",           "(ESeq [(ELet (\"_\", (ELet (\"x\", (ELit (Int 0))))))])");
+    ("_ = { let a = 0 }",       "(ESeq [(ELet (\"_\", (ESeq [(ELet (\"a\", (ELit (Int 0))))])))])");
+    ("_ = { 1 }",               "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1))])))])");
+    ("_ = { 1; }",              "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1))])))])");
+    ("_ = { 1; 2 }",            "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
+    ("_ = { 1; 2; }",           "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
+    ("_ = { 1\n 2; }",          "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
+    ("_ = { 1\n 2\n }",         "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
+    ("_ = if 1 then 2 else 3",  "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
+    ("_ = if 1 then 2",         "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), EUnit))))])");
+    ("_ = if \n 1 \n then \n 2 \n else \n 3",
+                                "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
+    ("_ = fn x -> x",           "(ESeq [(ELet (\"_\", (ELambda (\"x\", (EId \"x\")))))])");
+    ("_ = fn x ->\n x",         "(ESeq [(ELet (\"_\", (ELambda (\"x\", (EId \"x\")))))])");
+    ("_ = fn () -> 0",          "(ESeq [(ELet (\"_\", (ELambda (\"()\", (ELit (Int 0))))))])");
+    ("_ = 1 ? 2 : 3",           "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
+    ("_ = 1 ?\n 2\n :\n 3",     "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
+    ("_ = 1 + 2",               "(ESeq [(ELet (\"_\", (EBinary (\"+\", (ELit (Int 1)), (ELit (Int 2))))))])");
+    ("_ = 1 + 2 * 3",           "(ESeq [(ELet (\"_\", (EBinary (\"+\", (ELit (Int 1)), (EBinary (\"*\", (ELit (Int 2)), (ELit (Int 3))))))))])");
+    ("_ = 1 - 2 * 3 + 4",       "(ESeq [(ELet (\"_\", (EBinary (\"+\", (EBinary (\"-\", (ELit (Int 1)), (EBinary (\"*\", (ELit (Int 2)), (ELit (Int 3)))))), (ELit (Int 4))))))])");
+    ("_ = 1 - 2 < 3 - 4",       "(ESeq [(ELet (\"_\", (EBinary (\"<\", (EBinary (\"-\", (ELit (Int 1)), (ELit (Int 2)))), (EBinary (\"-\", (ELit (Int 3)), (ELit (Int 4))))))))])");
+    ("_ = 1 :: 2 :: 3", "(ESeq [(ELet (\"_\", (EBinary (\"::\", (ELit (Int 1)), (EBinary (\"::\", (ELit (Int 2)), (ELit (Int 3))))))))])");
+    ("_ = 1 :: 2 :: [3]",
+        "(ESeq [(ELet (\"_\", (EBinary (\"::\", (ELit (Int 1)), (EBinary (\"::\", (ELit (Int 2)), (EList [(ELit (Int 3))])))))))])");
+    ("_ = 1 :: 2 :: []",
+        "(ESeq [(ELet (\"_\", (EBinary (\"::\", (ELit (Int 1)), (EBinary (\"::\", (ELit (Int 2)), ENull))))))])");
+    ("_ = foo ()",              "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), EUnit))))])");
+    ("_ = foo 1",               "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
+    ("_ = foo 1 2",             "(ESeq [(ELet (\"_\", (EApply ((EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
+    ("_ = foo (1)",             "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
+    ("_ = foo [1,2]",           "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (EList [(ELit (Int 1)); (ELit (Int 2))])))))])");
+    ("_ = foo 1::2",            "(ESeq [(ELet (\"_\", (EBinary (\"::\", (EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
+    ("_ = foo (1::2)",          "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (EBinary (\"::\", (ELit (Int 1)), (ELit (Int 2))))))))])");
+    ("_ = -11",                 "(ESeq [(ELet (\"_\", (EUnary (\"-\", (ELit (Int 11))))))])");
+    ("_ = !2",                  "(ESeq [(ELet (\"_\", (EUnary (\"!\", (ELit (Int 2))))))])");
+    ("_ = a",                   "(ESeq [(ELet (\"_\", (EId \"a\")))])");
+    ("_ = [1,2,3]",             "(ESeq [(ELet (\"_\", (EList [(ELit (Int 1)); (ELit (Int 2)); (ELit (Int 3))])))])");
+    ("_ = [ ]",                 "(ESeq [(ELet (\"_\", ENull))])");
+    ("_ = []",                  "(ESeq [(ELet (\"_\", ENull))])");
+    ("_ = 'a'",                 "(ESeq [(ELet (\"_\", (ELit (Char 'a'))))])");
+    ("_ = \"abc\"",             "(ESeq [(ELet (\"_\", (ELit (String \"abc\"))))])");
+    ("_ = (23)",                "(ESeq [(ELet (\"_\", (ELit (Int 23))))])");
+]
+
+let parser_test verbose =
+    print_string "Parser Test: ";
+    let do_parse (text, expected) =
+        try
+            if verbose then
+                print_endline @@ "\ntext     > " ^ text;
+            let toks = L.lexer "test" text in
+            if verbose then
+                print_endline @@ "tokens   > " ^ s_token_src_list toks;
+            let s = s_expr_src @@ P.parse "" toks in
+            if verbose then begin
+                print_endline @@ "expected > " ^ expected;
+                print_endline @@ "parsed   > " ^ s
+            end;
+            test_eq s expected (s ^ " != " ^ expected)
+        with Error (_, pos, msg) -> test_fail @@ Printf.sprintf "line=%d, col=%d: Error: %s" pos.line pos.col msg
+    in
+    List.iter do_parse parser_test_texts;
+    print_newline ()
+
+let test_print verbose =
+    List.iter ( fun (text, _) ->
+            try
+                if verbose then print_string @@ "text  > " ^ text ^ "\nresult> ";
+                let e = P.parse "" @@ L.lexer "" text in
+                print_endline @@ s_expr_src e;
+                if verbose then print_endline @@ "      > " ^ s_expr e
+            with Error (_, pos, msg) -> Printf.printf "line=%d, col=%d: Error: %s\n" pos.line pos.col msg
+        ) parser_test_texts;
+    print_newline ()
 
 let test verbose =
     lexer_test verbose;
+    parser_test verbose;
     test_report ()
+

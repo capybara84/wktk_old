@@ -9,7 +9,7 @@ expr
     | if_expr
     | fn_expr
     | comp_expr
-    | bin_expr
+    | cond_expr
     | ';'
     | NEWLINE
 let_expr
@@ -19,7 +19,7 @@ if_expr
 fn_expr
     | FN params '->' expr
 params
-    = {ID}
+    = {ID|'_'|'()'}
 comp_expr
     = '{' {expr} '}'
 
