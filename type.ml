@@ -19,9 +19,6 @@ let debug_type_out s =
     if !debug_scope_flag then
         (decr debug_indent; debug_type @@ "OUT " ^ s)
 
-let error pos msg =
-    raise (Error (pos, msg))
-
 let seed = ref 0
 let new_tvar () =
     let ty = TVar (!seed, ref None) in

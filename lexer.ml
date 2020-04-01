@@ -7,9 +7,6 @@ type t = {
     current : int;
 }
     
-let error lex msg =
-    raise (Error (lex.pos, msg))
-
 let init_lex filename text = {
     text = text;
     len = String.length text;
@@ -81,14 +78,14 @@ let lexer filename text =
     let lex_char lex =
         let (c, lex) = get_char lex in
         if peek lex <> '\'' then
-            error lex "missing single-quote";
+            error lex.pos "missing single-quote";
         (Lit (Char c), next lex)
     in
     let lex_string lex =
         let buffer = Buffer.create 10 in
         let rec aux lex =
             if is_end lex then
-                error lex "unterminated string";
+                error lex.pos "unterminated string";
             let (c, lex) = get_char lex in
             match c with
             | '"' ->
@@ -115,7 +112,7 @@ let lexer filename text =
         let rec skip_nested_comment lex =
             let rec aux lex =
                 if is_end lex then
-                    error lex "unexpected eof"
+                    error lex.pos "unexpected eof"
                 else
                     match peek lex with
                     | '*' ->
@@ -191,7 +188,7 @@ let lexer filename text =
                     | "->" -> RArrow | _ -> Op op
                 in
                 get_tokens lex @@ make_tokens pos tk
-            | _ -> error lex @@ "Unknown character '" ^ escape_char (peek lex) ^ "'"
+            | _ -> error lex.pos @@ "Unknown character '" ^ escape_char (peek lex) ^ "'"
     in
     get_tokens (init_lex filename text) []
 

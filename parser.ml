@@ -50,17 +50,17 @@ let rec skip_semi pars =
     if peek_token pars = Semi then
         next_token pars
 
-let error pars msg =
+let parse_error pars msg =
     let at_token =
         match peek_token pars with
         | Eof -> ""
         | x -> " at token '" ^ s_token x ^ "'"
     in
-    raise (Error (get_pos pars, msg ^ at_token))
+    error (get_pos pars) (msg ^ at_token)
 
 let expect pars tok =
     if peek_token pars <> tok then
-        error pars ("expect '" ^ s_token tok ^ "'")
+        parse_error pars ("expect '" ^ s_token tok ^ "'")
     else
         next_token pars
 
@@ -185,7 +185,7 @@ and parse_simple_expr pars =
         | Eof ->
             debug_parse "EOF";
             raise End_of_file
-        | _ -> error pars "syntax error"
+        | _ -> parse_error pars "syntax error"
     in
     debug_parse_out @@ "parse_simple_expr: " ^ s_expr_src res;
     res
@@ -423,7 +423,7 @@ and parse_id_def global pars =
                 make_expr (ELetRec (id, body)) pos
             else
                 make_expr (ELet (id, body)) pos
-        | _ -> error pars "expect identifier"
+        | _ -> parse_error pars "expect identifier"
     in
     debug_parse_out @@ "parse_id_def: " ^ s_expr_src res;
     res

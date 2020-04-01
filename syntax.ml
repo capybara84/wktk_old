@@ -47,6 +47,8 @@ type expr_decl =
 and expr = expr_decl * source_pos
 
 
+let error pos msg = raise (Error (pos, msg))
+
 let s_pos pos = Printf.sprintf "%s, line=%d, col=%d: " pos.filename pos.line pos.col
 
 let id x = x
