@@ -1,5 +1,24 @@
 open Syntax
 
+let debug_scope_flag = ref false
+let debug_indent = ref 0
+
+let rec debug_show_space = function
+    | 0 -> ()
+    | n -> print_char ' '; debug_show_space (n-1)
+
+let debug_type s =
+    if !debug_scope_flag then
+        (debug_show_space !debug_indent; print_endline s)
+
+let debug_type_in s =
+    if !debug_scope_flag then
+        (debug_type @@ "IN " ^ s; incr debug_indent)
+
+let debug_type_out s =
+    if !debug_scope_flag then
+        (decr debug_indent; debug_type @@ "OUT " ^ s)
+
 let error pos msg =
     raise (Error ("runtime", pos, msg))
 
@@ -8,6 +27,7 @@ let new_tvar () =
     let ty = TVar (!seed, ref None) in
     incr seed;
     ty
+
 let get_tnum = function
     | TVar (n, _) -> n
     | _ -> failwith "tnum"
@@ -24,8 +44,7 @@ let t_string = t_list t_char
 let new_list () =
     t_list (new_tvar ())
 
-let new_type_schema () =
-    let ty = new_tvar () in
+let new_type_schema ty =
     { vars = []; body = ty }
 
 let rec equal t1 t2 =
@@ -159,114 +178,119 @@ let rec unify t1 t2 pos =
     | (_, _) -> error pos @@ "type mismatch between " ^ s_typ t2 ^ " and " ^ s_typ t1
 
 let rec infer tenv e =
+    debug_type_in @@ "infer: " ^ s_expr e;
     let infer_unary op t pos =
-        match op with
-        | UMinus ->
-            if equal t t_int then t_int
-            else if equal t t_float then t_float
-            else error pos @@ "The unary minus expression has type " ^ s_typ t ^ " but an expression was expected of type int/float"
-        | UNot ->
-            if equal t t_bool then t_bool
-            else error pos @@ "The unary not expression has type " ^ s_typ t ^ " but an expression was expected of type int"
+        debug_type_in @@ "infer_unary: '" ^ s_unop op ^ "' " ^ s_typ t;
+        let res =
+            match op with
+            | UMinus ->
+                if equal t t_int then t_int
+                else if equal t t_float then t_float
+                else error pos @@ "The unary minus expression has type " ^ s_typ t ^ " but an expression was expected of type int/float"
+            | UNot ->
+                if equal t t_bool then t_bool
+                else error pos @@ "The unary not expression has type " ^ s_typ t ^ " but an expression was expected of type int"
+        in
+        debug_type_out @@ "infer_unary: " ^ s_typ res;
+        res
     in
     let infer_binary op tl tr pos =
-        match op with
-        | BinAdd | BinSub | BinMul | BinDiv | BinMod ->
-            unify tl tr pos;
-            if equal tl t_int || equal tr t_float then tl
-            else error pos @@ "The binary expression has type " ^ s_typ tl ^ " but an expression was expected of type int/float"
-        | BinLT | BinLE | BinGT | BinGE ->
-            unify tl tr pos;
-            if equal tl t_char || equal tl t_int || equal tl t_float || equal tl t_string then t_bool
-            else error pos @@ "The relational expression has type " ^ s_typ tl ^ " but an expression was expected of type char/int/float/string"
-        | BinEql | BinNeq ->
-            unify tl tr pos;
-            t_bool
-        | BinLOr | BinLAnd -> 
-            unify t_bool tl pos;
-            unify t_bool tr pos;
-            t_bool
-        | BinCons ->
-            unify (t_list tl) tr pos;
-            tr
-        | _ -> failwith "infer_binary"
+        debug_type_in @@ "infer_binary: '" ^ s_binop op ^ "' " ^ s_typ tl ^ " " ^ s_typ tr;
+        let res =
+            match op with
+            | BinAdd | BinSub | BinMul | BinDiv | BinMod ->
+                unify tl tr pos;
+                if equal tl t_int || equal tl t_float then tl
+                else error pos @@ "The binary expression has type " ^ s_typ tl ^ " but an expression was expected of type int/float"
+            | BinLT | BinLE | BinGT | BinGE ->
+                unify tl tr pos;
+                if equal tl t_char || equal tl t_int || equal tl t_float || equal tl t_string then t_bool
+                else error pos @@ "The relational expression has type " ^ s_typ tl ^ " but an expression was expected of type char/int/float/string"
+            | BinEql | BinNeq ->
+                unify tl tr pos;
+                t_bool
+            | BinLOr | BinLAnd -> 
+                unify t_bool tl pos;
+                unify t_bool tr pos;
+                t_bool
+            | BinCons ->
+                unify (t_list tl) tr pos;
+                tr
+            | _ -> failwith "infer_binary"
+        in
+        debug_type_out @@ "infer_binary: " ^ s_typ res;
+        res
     in
-    match e with
-    | (ENull, _) -> (tenv, new_list ())
-    | (EUnit, _) -> (tenv, t_unit)
-    | (ELit (Int _), _) -> (tenv, t_int)
-    | (ELit (Char _), _) -> (tenv, t_char)
-    | (ELit (Float _), _) -> (tenv, t_float)
-    | (ELit (String _), _) -> (tenv, t_string)
-    | (EId s, pos) ->
-        let t = (try !(Env.lookup s tenv) with Not_found -> error pos @@ "'" ^ s ^ "' not found")
-        (*TODO create_alpha_equivalent *)
-        in (tenv, t)
-    | (EUnary (op, e), pos) ->
-        let (_, t) = infer tenv e in
-        (tenv, infer_unary op t pos)
-    | (EBinary (BinOp op, l, r), pos) ->
-        (*TODO *)
-        (tenv, t_unit)
-        (*
-        let (_, tl) = infer tenv l in
-        let (_, tr) = infer tenv r in
-        let t = (try !(Env.lookup op tenv) with Not_found -> error pos @@ "'" ^ op ^ "' not found")
-        (* unify (TFun (t1, t2)) t *)
-        (* unify t1 tl; unify t2 tr *)
-        in (tenv, t) 
-        *)
-    | (EBinary (op, l, r), pos) ->
-        let (_, tl) = infer tenv l in
-        let (_, tr) = infer tenv r in
-        (tenv, infer_binary op tl tr pos)
-    | (ECond (cond_e, then_e, else_e), pos) ->
-        let (_, t_cond) = infer tenv cond_e in
-        unify t_bool t_cond pos;
-        let (_, t_then) = infer tenv then_e in
-        let (_, t_else) = infer tenv else_e in
-        unify t_then t_else pos;
-        (tenv, t_then)
-    | (ELambda ("()", body), _) ->
-        (*TODO type_schema *)
-        let (_, t_body) = infer tenv body in
-        (tenv, TFun (t_unit, t_body))
-    | (ELambda ("_", body), pos) ->
-        let t_arg = new_tvar () in
-        let (_, t_body) = infer tenv body in
-        (tenv, TFun (t_arg, t_body))
-    | (ELambda (arg, body), pos) ->
-        let t_arg = new_tvar () in
-        let tenv = Env.extend arg (ref t_arg) tenv in
-        let (_, t_body) = infer tenv body in
-        (tenv, TFun (t_arg, t_body))
-    | (EApply (fn, arg), pos) ->
-        let (_, t_fn) = infer tenv fn in
-        let (_, t_arg) = infer tenv arg in
-        let t = new_tvar () in
-        unify t_fn (TFun (t_arg, t)) pos;
-        (tenv, t)
-    | (ELet (id, e), _) ->
-        (*TODO create_poly_type *)
-        let (_, t) = infer tenv e in
-        let tenv = Env.extend id (ref t) tenv in
-        (tenv, t_unit)
-    | (ELetRec (id, e), _) ->
-        (*TODO type_schema *)
-        (*TODO create_poly_type *)
-        let r = ref (new_tvar ()) in
-        let tenv = Env.extend id r tenv in
-        let (_, t) = infer tenv e in
-        r := t;
-        (tenv, t_unit)
-    | (ESeq el, _) ->
-        let rec loop tenv = function
-            | [] -> (tenv, t_unit)
-            | x::[] ->
-                infer tenv x
-            | x::xs ->
-                let (tenv, t) = infer tenv x in
-                if t <> t_unit then error (snd x) "expression should have type unit";
-                loop tenv xs
-        in loop tenv el
+    let res =
+        match e with
+        | (ENull, _) -> (tenv, new_list ())
+        | (EUnit, _) -> (tenv, t_unit)
+        | (ELit (Int _), _) -> (tenv, t_int)
+        | (ELit (Char _), _) -> (tenv, t_char)
+        | (ELit (Float _), _) -> (tenv, t_float)
+        | (ELit (String _), _) -> (tenv, t_string)
+        | (EId s, pos) ->
+            let ts = (try !(Env.lookup s tenv) with Not_found -> error pos @@ "'" ^ s ^ "' not found") in
+            let new_ts = create_alpha_equivalent ts in
+            (tenv, new_ts.body)
+        | (EUnary (op, e), pos) ->
+            let (_, t) = infer tenv e in
+            (tenv, infer_unary op t pos)
+        | (EBinary (BinOp op, l, r), pos) ->
+            (*TODO *)
+            (tenv, t_unit)
+        | (EBinary (op, l, r), pos) ->
+            let (_, tl) = infer tenv l in
+            let (_, tr) = infer tenv r in
+            (tenv, infer_binary op tl tr pos)
+        | (ECond (cond_e, then_e, else_e), pos) ->
+            let (_, t_cond) = infer tenv cond_e in
+            unify t_bool t_cond pos;
+            let (_, t_then) = infer tenv then_e in
+            let (_, t_else) = infer tenv else_e in
+            unify t_then t_else pos;
+            (tenv, t_then)
+        | (ELambda ("()", body), _) ->
+            let (_, t_body) = infer tenv body in
+            (tenv, TFun (t_unit, t_body))
+        | (ELambda ("_", body), pos) ->
+            let t_arg = new_tvar () in
+            let (_, t_body) = infer tenv body in
+            (tenv, TFun (t_arg, t_body))
+        | (ELambda (arg, body), pos) ->
+            let t_arg = new_tvar () in
+            let ts = new_type_schema t_arg in
+            let tenv = Env.extend arg (ref ts) tenv in
+            let (_, t_body) = infer tenv body in
+            (tenv, TFun (t_arg, t_body))
+        | (EApply (fn, arg), pos) ->
+            let (_, t_fn) = infer tenv fn in
+            let (_, t_arg) = infer tenv arg in
+            let t = new_tvar () in
+            unify t_fn (TFun (t_arg, t)) pos;
+            (tenv, t)
+        | (ELet (id, e), _) ->
+            let (_, t) = infer tenv e in
+            let ts = create_poly_type t in
+            let tenv = Env.extend id (ref ts) tenv in
+            (tenv, t_unit)
+        | (ELetRec (id, e), _) ->
+            let r = ref (new_type_schema (new_tvar ())) in
+            let tenv = Env.extend id r tenv in
+            let (_, t) = infer tenv e in
+            r := create_poly_type t;
+            (tenv, t_unit)
+        | (ESeq el, _) ->
+            let rec loop tenv = function
+                | [] -> (tenv, t_unit)
+                | x::[] ->
+                    infer tenv x
+                | x::xs ->
+                    let (tenv, t) = infer tenv x in
+                    if t <> t_unit then error (snd x) "expression should have type unit";
+                    loop tenv xs
+            in loop tenv el
+    in
+    debug_type_out @@ "infer: " ^ s_typ (snd res);
+    res
 

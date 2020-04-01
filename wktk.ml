@@ -31,10 +31,12 @@ let () =
             ("-v", Arg.Unit (fun () -> verbose := true), " verbose");
             ("-t", Arg.Unit (fun () -> do_test := true), " unit test");
             ("-tp", Arg.Unit (fun () -> do_test_print := true), " test print");
-            ("-p", Arg.Unit (fun () ->  do_print := true), " print expression");
+            ("-p", Arg.Unit (fun () -> do_print := true), " print expression");
+            ("-dp", Arg.Unit (fun () -> Parser.debug_scope_flag := true), " debug parser");
+            ("-dt", Arg.Unit (fun () -> Type.debug_scope_flag := true), " debug type");
         ]
         (fun name -> filenames := name :: !filenames)
-        "usage: wktk [-v]][-t][-tp][-p] filename...";
+        "usage: wktk [-v]][-t][-tp][-p][-dp][-dt] filename...";
     List.iter (fun x -> print_endline x) !filenames;
     if !do_test then
         Test.test !verbose
