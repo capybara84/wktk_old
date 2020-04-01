@@ -16,22 +16,31 @@ type token_decl =
 
 type token = token_decl * source_pos
 
+type typ =
+    | TConstr of string * typ list
+    | TFun of typ * typ
+    | TVar of int * typ option ref
+and type_schema = {
+    vars : int list;
+    body : typ;
+}
+
 type binop = BinAdd | BinSub | BinMul | BinDiv | BinMod | BinLT | BinLE | BinGT | BinGE
     | BinEql | BinNeq | BinLOr | BinLAnd | BinCons | BinOp of string
 type unop = UNot | UMinus
 
 type expr_decl =
     | ENull | EUnit
-    | ESeq of expr list
-    | EFunc of string * string * expr
-    | ELet of string * expr
+    | ELit of lit
+    | EId of string
+    | EUnary of unop * expr
+    | EBinary of binop * expr * expr
     | ECond of expr * expr * expr
     | ELambda of string * expr
     | EApply of expr * expr
-    | EUnary of unop * expr
-    | EBinary of binop * expr * expr
-    | EId of string
-    | ELit of lit
+    | ELet of string * expr
+    | ELetRec of string * expr
+    | ESeq of expr list
 
 and expr = expr_decl * source_pos
 
@@ -81,6 +90,95 @@ let s_token = function
     | LBrace -> "{" | RBrace -> "}" | LParen -> "(" | RParen -> ")" | LBracket -> "["
     | RBracket -> "]" | RArrow -> "->" 
 
+let int_to_alpha x =
+    if x <= Char.code 'z' - Char.code 'a' then
+        String.make 1 (Char.chr ((Char.code 'a') + x))
+    else
+        string_of_int x
+
+let s_typ ty =
+    let counter = ref 0 in
+    let dic = ref [] in
+    let rec to_s n ty =
+        let s_typ_list tl =
+            let rec aux = function
+                | [] -> ""
+                | x::[] -> to_s 0 x
+                | x::xs ->
+                    let s = to_s 0 x in
+                    s ^ ", " ^ aux xs
+            in
+            match tl with
+            | [] -> ""
+            | x::[] -> to_s 0 x ^ " "
+            | _::_ -> "(" ^ aux tl ^ ") " 
+        in
+        let (m, str) =
+            match ty with
+            | TConstr ("list", [TConstr ("char", [])])
+                -> (3, "string")
+            | TConstr (name, tl) -> (3, s_typ_list tl ^ name)
+            | TFun (t1, t2) ->
+                let s1 = to_s 1 t1 in
+                let s2 = to_s 0 t2 in
+                (1, s1 ^ " -> " ^ s2)
+            | TVar (x, {contents = None}) ->
+                let y = try List.assoc x !dic
+                    with Not_found ->
+                        dic := (x, !counter) :: !dic;
+                        let n = !counter in
+                        incr counter;
+                        n
+                in
+                (3, "'" ^ int_to_alpha y)
+            | TVar (_, {contents = Some t}) ->
+                (3, to_s n t)
+        in
+        if m > n then str
+        else "(" ^ str ^ ")"
+    in to_s (-1) ty
+
+let s_typ_raw ty =
+    let rec to_s n ty =
+        let s_typ_list tl =
+            let rec aux = function
+                | [] -> ""
+                | x::[] -> to_s 0 x
+                | x::xs ->
+                    let s = to_s 0 x in
+                    s ^ ", " ^ aux xs
+            in
+            match tl with
+            | [] -> ""
+            | x::[] -> to_s 0 x ^ " "
+            | _::_ -> "(" ^ aux tl ^ ") " 
+        in
+        let (m, str) =
+            match ty with
+            | TConstr ("list", [TConstr ("char", [])])
+                -> (3, "string")
+            | TConstr (name, tl) -> (3, s_typ_list tl ^ name)
+            | TFun (t1, t2) ->
+                let s1 = to_s 1 t1 in
+                let s2 = to_s 0 t2 in
+                (1, s1 ^ " -> " ^ s2)
+            | TVar (x, {contents = None}) ->
+                (3, "'" ^ string_of_int x)
+            | TVar (_, {contents = Some t}) ->
+                (3, to_s n t ^ "!")
+        in
+        if m > n then str
+        else "(" ^ str ^ ")"
+    in to_s (-1) ty
+
+let s_type_schema ts =
+    let rec s_list = function
+        | [] -> ""
+        | x::[] -> string_of_int x
+        | x::xs -> string_of_int x ^ "," ^ s_list xs
+    in
+    "{ vars:[" ^ s_list ts.vars ^ "], body:" ^ s_typ_raw ts.body ^ " }"
+
 let s_binop = function
     | BinAdd -> "+" | BinSub -> "-" | BinMul -> "*" | BinDiv -> "/" | BinMod -> "%"
     | BinLT -> "<" | BinLE -> "<=" | BinGT -> ">" | BinGE -> ">=" | BinEql -> "=="
@@ -89,18 +187,16 @@ let s_binop = function
 let s_unop = function UNot -> "!" | UMinus -> "-"
 
 let rec s_expr = function
-    | (ENull, _) -> "[]"
-    | (EUnit, _) -> "()"
-    | (ESeq el, _) -> "{ " ^ s_exprlist "; " el ^ " }"
-    | (EFunc (s, a, e), _) -> "(func " ^ s ^ " " ^ a ^ " = " ^ s_expr e ^ ")"
-    | (ELet (s, e), _) -> "(let " ^ s ^ " = " ^ s_expr e ^ ")"
+    | (ENull, _) -> "[]" | (EUnit, _) -> "()"
+    | (ELit l, _) -> s_lit l | (EId s, _) -> s
+    | (EUnary (op, e), _) -> "(unary '" ^ s_unop op ^ "' " ^ s_expr e ^ ")"
+    | (EBinary (op, l, r), _) -> "(binary '" ^ s_binop op ^ "' " ^ s_expr l ^ " " ^ s_expr r ^ ")"
     | (ECond (c, t, e), _) -> "(cond " ^ s_expr c ^ " then " ^ s_expr t ^ " else " ^ s_expr e ^ ")"
     | (ELambda (a, b), _) -> "(lambda " ^ a ^ " -> " ^ s_expr b ^ ")"
     | (EApply (f, a), _) -> "(apply " ^ s_expr f ^ " " ^ s_expr a ^ ")"
-    | (EUnary (op, e), _) -> "(unary '" ^ s_unop op ^ "' " ^ s_expr e ^ ")"
-    | (EBinary (op, l, r), _) -> "(binary '" ^ s_binop op ^ "' " ^ s_expr l ^ " " ^ s_expr r ^ ")"
-    | (EId s, _) -> s
-    | (ELit l, _) -> s_lit l
+    | (ELet (s, e), _) -> "(let " ^ s ^ " = " ^ s_expr e ^ ")"
+    | (ELetRec (s, e), _) -> "(letrec " ^ s ^ " = " ^ s_expr e ^ ")"
+    | (ESeq el, _) -> "{ " ^ s_exprlist "; " el ^ " }"
 and s_exprlist sep = s_list s_expr sep
 
 let s_lit_src = function
@@ -132,17 +228,15 @@ let s_binop_src = function
 let s_unop_src = function UNot -> "UNot" | UMinus -> "UMinus"
 
 let rec s_expr_src = function
-    | (ENull, _) -> "ENull"
-    | (EUnit, _) -> "EUnit"
-    | (ESeq el, _) -> "(ESeq " ^ s_exprlist_src el ^ ")"
-    | (EFunc (s, a, e), _) -> "(EFunc (" ^ quote s ^ ", " ^ quote a ^ ", " ^ s_expr_src e ^ "))"
-    | (ELet (s, e), _) -> "(ELet (" ^ quote s ^ ", " ^ s_expr_src e ^ "))"
+    | (ENull, _) -> "ENull" | (EUnit, _) -> "EUnit"
+    | (ELit l, _) -> "(ELit (" ^ s_lit_src l ^ "))" | (EId s, _) -> "(EId " ^ quote s ^ ")"
+    | (EUnary (op, e), _) -> "(EUnary (" ^ s_unop_src op ^ ", " ^ s_expr_src e ^ "))"
+    | (EBinary (op, l, r), _) -> "(EBinary (" ^ s_binop_src op ^ ", " ^ s_expr_src l ^ ", " ^ s_expr_src r ^ "))"
     | (ECond (c, t, e), _) -> "(ECond (" ^ s_expr_src c ^ ", " ^ s_expr_src t ^ ", " ^ s_expr_src e ^ "))"
     | (ELambda (a, b), _) -> "(ELambda (" ^ quote a ^ ", " ^ s_expr_src b ^ "))"
     | (EApply (f, a), _) -> "(EApply (" ^ s_expr_src f ^ ", " ^ s_expr_src a ^ "))"
-    | (EUnary (op, e), _) -> "(EUnary (" ^ s_unop_src op ^ ", " ^ s_expr_src e ^ "))"
-    | (EBinary (op, l, r), _) -> "(EBinary (" ^ s_binop_src op ^ ", " ^ s_expr_src l ^ ", " ^ s_expr_src r ^ "))"
-    | (EId s, _) -> "(EId " ^ quote s ^ ")"
-    | (ELit l, _) -> "(ELit (" ^ s_lit_src l ^ "))"
+    | (ELet (s, e), _) -> "(ELet (" ^ quote s ^ ", " ^ s_expr_src e ^ "))"
+    | (ELetRec (s, e), _) -> "(ELetRec (" ^ quote s ^ ", " ^ s_expr_src e ^ "))"
+    | (ESeq el, _) -> "(ESeq " ^ s_exprlist_src el ^ ")"
 and s_exprlist_src el = "[" ^ s_list s_expr_src "; " el ^ "]"
 

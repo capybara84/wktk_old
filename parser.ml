@@ -361,7 +361,7 @@ let_expr
 and parse_let_expr pars =
     debug_parse_in @@ "parse_let_expr: " ^ s_token_src_list pars.toks;
     next_token pars;
-    let res = parse_id_def pars in
+    let res = parse_id_def false pars in
     debug_parse_out @@ "parse_let_expr: " ^ s_expr_src res;
     res
 
@@ -412,7 +412,7 @@ and parse_params acc pars =
 id_def
     = ID '=' expr
 *)
-and parse_id_def pars =
+and parse_id_def global pars =
     debug_parse_in @@ "parse_id_def: " ^ s_token_src_list pars.toks;
     let pos = get_pos pars in
     let res =
@@ -422,7 +422,10 @@ and parse_id_def pars =
             expect pars Eq;
             skip_newline pars;
             let body = parse_expr pars in
-            make_expr (ELet (id, body)) pos
+            if global then
+                make_expr (ELetRec (id, body)) pos
+            else
+                make_expr (ELet (id, body)) pos
         | _ -> error pars "expect identifier"
     in
     debug_parse_out @@ "parse_id_def: " ^ s_expr_src res;
@@ -440,7 +443,7 @@ let parse_program pars =
         else if peek_token pars = Semi then
             (next_token pars; aux acc pars)
         else
-            let e = parse_id_def pars in
+            let e = parse_id_def true pars in
             aux (e :: acc) pars
     in
     let pos = get_pos pars in

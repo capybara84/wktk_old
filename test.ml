@@ -117,52 +117,52 @@ let lexer_test verbose =
 
 let parser_test_texts = [
     (";",                       "(ESeq [])");
-    ("x = 0",                   "(ESeq [(ELet (\"x\", (ELit (Int 0))))])");
-    ("x = 0; y = 1",            "(ESeq [(ELet (\"x\", (ELit (Int 0)))); (ELet (\"y\", (ELit (Int 1))))])");
-    ("_ = let x = 0",           "(ESeq [(ELet (\"_\", (ELet (\"x\", (ELit (Int 0))))))])");
-    ("_ = { let a = 0 }",       "(ESeq [(ELet (\"_\", (ESeq [(ELet (\"a\", (ELit (Int 0))))])))])");
-    ("_ = { 1 }",               "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1))])))])");
-    ("_ = { 1; }",              "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1))])))])");
-    ("_ = { 1; 2 }",            "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
-    ("_ = { 1; 2; }",           "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
-    ("_ = { 1\n 2; }",          "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
-    ("_ = { 1\n 2\n }",         "(ESeq [(ELet (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
-    ("_ = if 1 then 2 else 3",  "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
-    ("_ = if 1 then 2",         "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), EUnit))))])");
+    ("x = 0",                   "(ESeq [(ELetRec (\"x\", (ELit (Int 0))))])");
+    ("x = 0; y = 1",            "(ESeq [(ELetRec (\"x\", (ELit (Int 0)))); (ELetRec (\"y\", (ELit (Int 1))))])");
+    ("_ = let x = 0",           "(ESeq [(ELetRec (\"_\", (ELet (\"x\", (ELit (Int 0))))))])");
+    ("_ = { let a = 0 }",       "(ESeq [(ELetRec (\"_\", (ESeq [(ELet (\"a\", (ELit (Int 0))))])))])");
+    ("_ = { 1 }",               "(ESeq [(ELetRec (\"_\", (ESeq [(ELit (Int 1))])))])");
+    ("_ = { 1; }",              "(ESeq [(ELetRec (\"_\", (ESeq [(ELit (Int 1))])))])");
+    ("_ = { 1; 2 }",            "(ESeq [(ELetRec (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
+    ("_ = { 1; 2; }",           "(ESeq [(ELetRec (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
+    ("_ = { 1\n 2; }",          "(ESeq [(ELetRec (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
+    ("_ = { 1\n 2\n }",         "(ESeq [(ELetRec (\"_\", (ESeq [(ELit (Int 1)); (ELit (Int 2))])))])");
+    ("_ = if 1 then 2 else 3",  "(ESeq [(ELetRec (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
+    ("_ = if 1 then 2",         "(ESeq [(ELetRec (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), EUnit))))])");
     ("_ = if \n 1 \n then \n 2 \n else \n 3",
-                                "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
-    ("_ = fn x -> x",           "(ESeq [(ELet (\"_\", (ELambda (\"x\", (EId \"x\")))))])");
-    ("_ = fn x ->\n x",         "(ESeq [(ELet (\"_\", (ELambda (\"x\", (EId \"x\")))))])");
-    ("_ = fn () -> 0",          "(ESeq [(ELet (\"_\", (ELambda (\"()\", (ELit (Int 0))))))])");
-    ("_ = 1 ? 2 : 3",           "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
-    ("_ = 1 ?\n 2\n :\n 3",     "(ESeq [(ELet (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
-    ("_ = 1 + 2",               "(ESeq [(ELet (\"_\", (EBinary (BinAdd, (ELit (Int 1)), (ELit (Int 2))))))])");
-    ("_ = 1 + 2 * 3",           "(ESeq [(ELet (\"_\", (EBinary (BinAdd, (ELit (Int 1)), (EBinary (BinMul, (ELit (Int 2)), (ELit (Int 3))))))))])");
-    ("_ = 1 - 2 * 3 + 4",       "(ESeq [(ELet (\"_\", (EBinary (BinAdd, (EBinary (BinSub, (ELit (Int 1)), (EBinary (BinMul, (ELit (Int 2)), (ELit (Int 3)))))), (ELit (Int 4))))))])");
-    ("_ = 1 - 2 < 3 - 4",       "(ESeq [(ELet (\"_\", (EBinary (BinLT, (EBinary (BinSub, (ELit (Int 1)), (ELit (Int 2)))), (EBinary (BinSub, (ELit (Int 3)), (ELit (Int 4))))))))])");
-    ("_ = 1 :: 2 :: 3", "(ESeq [(ELet (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (ELit (Int 3))))))))])");
+                                "(ESeq [(ELetRec (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
+    ("_ = fn x -> x",           "(ESeq [(ELetRec (\"_\", (ELambda (\"x\", (EId \"x\")))))])");
+    ("_ = fn x ->\n x",         "(ESeq [(ELetRec (\"_\", (ELambda (\"x\", (EId \"x\")))))])");
+    ("_ = fn () -> 0",          "(ESeq [(ELetRec (\"_\", (ELambda (\"()\", (ELit (Int 0))))))])");
+    ("_ = 1 ? 2 : 3",           "(ESeq [(ELetRec (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
+    ("_ = 1 ?\n 2\n :\n 3",     "(ESeq [(ELetRec (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))])");
+    ("_ = 1 + 2",               "(ESeq [(ELetRec (\"_\", (EBinary (BinAdd, (ELit (Int 1)), (ELit (Int 2))))))])");
+    ("_ = 1 + 2 * 3",           "(ESeq [(ELetRec (\"_\", (EBinary (BinAdd, (ELit (Int 1)), (EBinary (BinMul, (ELit (Int 2)), (ELit (Int 3))))))))])");
+    ("_ = 1 - 2 * 3 + 4",       "(ESeq [(ELetRec (\"_\", (EBinary (BinAdd, (EBinary (BinSub, (ELit (Int 1)), (EBinary (BinMul, (ELit (Int 2)), (ELit (Int 3)))))), (ELit (Int 4))))))])");
+    ("_ = 1 - 2 < 3 - 4",       "(ESeq [(ELetRec (\"_\", (EBinary (BinLT, (EBinary (BinSub, (ELit (Int 1)), (ELit (Int 2)))), (EBinary (BinSub, (ELit (Int 3)), (ELit (Int 4))))))))])");
+    ("_ = 1 :: 2 :: 3", "(ESeq [(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (ELit (Int 3))))))))])");
     ("_ = 1 :: 2 :: [3]",
-        "(ESeq [(ELet (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))])");
+        "(ESeq [(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))])");
     ("_ = 1 :: 2 :: []",
-        "(ESeq [(ELet (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), ENull))))))])");
-    ("_ = foo ()",              "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), EUnit))))])");
-    ("_ = foo 1",               "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
-    ("_ = foo 1 2",             "(ESeq [(ELet (\"_\", (EApply ((EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
-    ("_ = foo (1)",             "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
+        "(ESeq [(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), ENull))))))])");
+    ("_ = foo ()",              "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), EUnit))))])");
+    ("_ = foo 1",               "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
+    ("_ = foo 1 2",             "(ESeq [(ELetRec (\"_\", (EApply ((EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
+    ("_ = foo (1)",             "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
     ("_ = foo [1,2]",
-        "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), ENull))))))))])");
-    ("_ = foo 1::2",            "(ESeq [(ELet (\"_\", (EBinary (BinCons, (EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
-    ("_ = foo (1::2)",          "(ESeq [(ELet (\"_\", (EApply ((EId \"foo\"), (EBinary (BinCons, (ELit (Int 1)), (ELit (Int 2))))))))])");
-    ("_ = -11",                 "(ESeq [(ELet (\"_\", (EUnary (UMinus, (ELit (Int 11))))))])");
-    ("_ = !2",                  "(ESeq [(ELet (\"_\", (EUnary (UNot, (ELit (Int 2))))))])");
-    ("_ = a",                   "(ESeq [(ELet (\"_\", (EId \"a\")))])");
+        "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), ENull))))))))])");
+    ("_ = foo 1::2",            "(ESeq [(ELetRec (\"_\", (EBinary (BinCons, (EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
+    ("_ = foo (1::2)",          "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (EBinary (BinCons, (ELit (Int 1)), (ELit (Int 2))))))))])");
+    ("_ = -11",                 "(ESeq [(ELetRec (\"_\", (EUnary (UMinus, (ELit (Int 11))))))])");
+    ("_ = !2",                  "(ESeq [(ELetRec (\"_\", (EUnary (UNot, (ELit (Int 2))))))])");
+    ("_ = a",                   "(ESeq [(ELetRec (\"_\", (EId \"a\")))])");
     ("_ = [1,2,3]",
-        "(ESeq [(ELet (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))])");
-    ("_ = [ ]",                 "(ESeq [(ELet (\"_\", ENull))])");
-    ("_ = []",                  "(ESeq [(ELet (\"_\", ENull))])");
-    ("_ = 'a'",                 "(ESeq [(ELet (\"_\", (ELit (Char 'a'))))])");
-    ("_ = \"abc\"",             "(ESeq [(ELet (\"_\", (ELit (String \"abc\"))))])");
-    ("_ = (23)",                "(ESeq [(ELet (\"_\", (ELit (Int 23))))])");
+        "(ESeq [(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))])");
+    ("_ = [ ]",                 "(ESeq [(ELetRec (\"_\", ENull))])");
+    ("_ = []",                  "(ESeq [(ELetRec (\"_\", ENull))])");
+    ("_ = 'a'",                 "(ESeq [(ELetRec (\"_\", (ELit (Char 'a'))))])");
+    ("_ = \"abc\"",             "(ESeq [(ELetRec (\"_\", (ELit (String \"abc\"))))])");
+    ("_ = (23)",                "(ESeq [(ELetRec (\"_\", (ELit (Int 23))))])");
 ]
 
 let parser_test verbose =
@@ -196,8 +196,39 @@ let test_print verbose =
         ) parser_test_texts;
     print_newline ()
 
+let type_test_texts = [
+    ("123", "int");
+    ("'a'", "char");
+    ("\"abc\"", "string");
+    ("300+12", "int");
+]
+
+let type_test verbose =
+    print_string "Type Test: ";
+    let do_test (text, expected) =
+        try
+            if verbose then
+                print_endline @@ "\ntext    > " ^ text;
+            let toks = L.lexer "test" text in
+            if verbose then
+                print_endline @@ "tokens  > " ^ s_token_src_list toks;
+            let pars = P.create_parser "test" toks in
+            let e = P.parse_expr pars in
+            if verbose then
+                print_endline @@ "parsed  > " ^ s_expr_src e;
+            let (tenv, t) = Type.infer [] e in
+            let s = s_typ t in
+            if verbose then
+                print_endline @@ "infer   > " ^ s;
+            test_eq s expected (s ^ " != " ^ expected)
+        with Error (_, pos, msg) -> test_fail @@ Printf.sprintf "line=%d, col=%d: Error: %s" pos.line pos.col msg
+    in
+    List.iter do_test type_test_texts;
+    print_newline ()
+
 let test verbose =
     lexer_test verbose;
     parser_test verbose;
+    type_test verbose;
     test_report ()
 
