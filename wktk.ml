@@ -6,14 +6,14 @@ let rec read_print_loop verbose tenv =
         flush stdout;
         let toks = Lexer.lexer "" @@ input_line stdin in
         if verbose then print_endline @@ s_token_src_list toks;
-        let e = Parser.parse_expr @@ Parser.create_parser "" toks in
+        let e = Parser.parse_expr @@ Parser.create_parser toks in
         print_endline @@ "-> " ^ s_expr_src e;
         print_endline @@ "-> " ^ s_expr e;
         let (tenv, t) = Type.infer tenv e in
         print_endline @@ " : " ^ s_typ t;
         read_print_loop verbose tenv
     with
-        | Error (_, pos, msg) ->
+        | Error (pos, msg) ->
             Printf.printf "line=%d, col=%d: Error: %s\n" pos.line pos.col msg;
             read_print_loop verbose tenv
         | Sys_error s -> print_endline s

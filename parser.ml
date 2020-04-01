@@ -20,19 +20,16 @@ let debug_parse_out s =
         (decr debug_indent; debug_parse @@ "OUT " ^ s)
 
 type parser = {
-    filename : string;
     mutable toks : token list;
 }
 
-let create_parser filename toks = { filename = filename; toks = toks }
+let create_parser toks = { toks = toks }
 
 let is_eof pars = pars.toks = []
 
-let eof_pos = { line = 0; col = 0 }
-
 let get_pos pars =
     if is_eof pars then
-        eof_pos
+        { filename = ""; line = 0; col = 0 }
     else
         snd @@ List.hd pars.toks
 
@@ -59,7 +56,7 @@ let error pars msg =
         | Eof -> ""
         | x -> " at token '" ^ s_token x ^ "'"
     in
-    raise (Error (pars.filename, get_pos pars, msg ^ at_token))
+    raise (Error (get_pos pars, msg ^ at_token))
 
 let expect pars tok =
     if peek_token pars <> tok then
@@ -452,8 +449,8 @@ let parse_program pars =
     debug_parse_out @@ "parse_program: " ^ s_expr_src res;
     res
 
-let parse filename toks =
-    let pars = create_parser filename toks in
+let parse toks =
+    let pars = create_parser toks in
     parse_program pars
 
 

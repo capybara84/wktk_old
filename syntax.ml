@@ -1,10 +1,11 @@
 
 type source_pos = {
+    filename : string;
     line : int;
     col : int;
 }
 
-exception Error of string * source_pos * string
+exception Error of source_pos * string
 
 type lit = Int of int | Char of char | Float of float | String of string
 
@@ -19,7 +20,6 @@ type token = token_decl * source_pos
 type typ =
     | TUnit | TBool | TInt | TChar | TFloat | TString
     | TList of typ
-    | TConstr of string * typ list
     | TFun of typ * typ
     | TVar of int * typ option ref
 and type_schema = {
@@ -46,6 +46,8 @@ type expr_decl =
 
 and expr = expr_decl * source_pos
 
+
+let s_pos pos = Printf.sprintf "%s, line=%d, col=%d: " pos.filename pos.line pos.col
 
 let id x = x
 
@@ -102,6 +104,7 @@ let s_typ ty =
     let counter = ref 0 in
     let dic = ref [] in
     let rec to_s n ty =
+(*
         let s_typ_list tl =
             let rec aux = function
                 | [] -> ""
@@ -115,12 +118,12 @@ let s_typ ty =
             | x::[] -> to_s 0 x ^ " "
             | _::_ -> "(" ^ aux tl ^ ") " 
         in
+*)
         let (m, str) =
             match ty with
             | TUnit -> (3, "unit") | TBool -> (3, "bool") | TInt -> (3, "int") | TChar -> (3, "char")
             | TFloat -> (3, "float") | TString -> (3, "string")
             | TList t -> (3, to_s 0 t ^ " list")
-            | TConstr (name, tl) -> (3, s_typ_list tl ^ name)
             | TFun (t1, t2) ->
                 let s1 = to_s 1 t1 in
                 let s2 = to_s 0 t2 in
@@ -143,6 +146,7 @@ let s_typ ty =
 
 let s_typ_raw ty =
     let rec to_s n ty =
+(*
         let s_typ_list tl =
             let rec aux = function
                 | [] -> ""
@@ -156,12 +160,12 @@ let s_typ_raw ty =
             | x::[] -> to_s 0 x ^ " "
             | _::_ -> "(" ^ aux tl ^ ") " 
         in
+*)
         let (m, str) =
             match ty with
             | TUnit -> (3, "unit") | TBool -> (3, "bool") | TInt -> (3, "int") | TChar -> (3, "char")
             | TFloat -> (3, "float") | TString -> (3, "string")
             | TList t -> (3, to_s 0 t ^ " list")
-            | TConstr (name, tl) -> (3, s_typ_list tl ^ name)
             | TFun (t1, t2) ->
                 let s1 = to_s 1 t1 in
                 let s2 = to_s 0 t2 in

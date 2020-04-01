@@ -20,7 +20,7 @@ let debug_type_out s =
         (decr debug_indent; debug_type @@ "OUT " ^ s)
 
 let error pos msg =
-    raise (Error ("runtime", pos, msg))
+    raise (Error (pos, msg))
 
 let seed = ref 0
 let new_tvar () =
@@ -31,8 +31,6 @@ let new_tvar () =
 let get_tnum = function
     | TVar (n, _) -> n
     | _ -> failwith "tnum"
-
-let t_constr name typlist = TConstr (name, typlist)
 
 let new_list () =
     TList (new_tvar ())
@@ -45,8 +43,6 @@ let rec equal t1 t2 =
     | (TUnit, TUnit) | (TBool, TBool) | (TInt, TInt) | (TChar, TChar)
     | (TFloat, TFloat) | (TString, TString)
     | (TList TChar, TString) | (TString, TList TChar) -> true
-    | (TConstr (s1, tl1), TConstr (s2, tl2)) ->
-        s1 = s2 && list_equal (tl1, tl2)
     | (TFun (t11, t12), TFun (t21, t22)) ->
         equal t11 t21 && equal t21 t22
     | (TVar (n, {contents = None}), TVar (m, {contents = None})) ->
@@ -59,6 +55,7 @@ let rec equal t1 t2 =
     | (_, TVar (_, {contents = Some t2'})) ->
         equal t1 t2'
     | _ -> false
+(*
 and list_equal = function
     | ([], []) -> true
     | (_, []) | ([], _) -> false
@@ -66,14 +63,12 @@ and list_equal = function
         if equal x y then
             list_equal (xs, ys)
         else false
+*)
 
 let rec unwrap_var free_vars = function
     | TList ty ->
         let (free_vars, unwrapped_t) = unwrap_var free_vars ty in
         (free_vars, TList unwrapped_t)
-    | TConstr (s, tl) ->
-        let (free_vars, unwrapped_tl) = unwrap_tl_var free_vars [] tl in
-        (free_vars, TConstr (s, unwrapped_tl))
     | TFun (t1, t2) ->
         let (free_vars, t1') = unwrap_var free_vars t1 in
         let (free_vars, t2') = unwrap_var free_vars t2 in
@@ -87,11 +82,13 @@ let rec unwrap_var free_vars = function
         let (free_vars, new_t) = unwrap_var free_vars t in
         (free_vars, new_t)
     | t -> (free_vars, t)
+(*
 and unwrap_tl_var free_vars new_tl = function
     | [] -> (free_vars, List.rev new_tl)
     | x::xs ->
         let (free_vars, t) = unwrap_var free_vars x in
         unwrap_tl_var free_vars (t::new_tl) xs
+*)
 
 let create_poly_type ty =
     let (free_vars, unwrapped_type) = unwrap_var [] ty in
@@ -107,7 +104,6 @@ let create_alpha_equivalent ts =
     in
     let rec subst map = function
         | TList t -> TList (subst map t)
-        | TConstr (s, tl) -> TConstr (s, List.map (subst map) tl)
         | TFun (t1, t2) -> TFun (subst map t1, subst map t2)
         | TVar (_, {contents = Some t}) -> subst map t
         | TVar (n, {contents = None}) as t ->
@@ -141,12 +137,12 @@ let rec occurs_in_type t t2 =
     else
         match t2 with
         | TList t' -> occurs_in_type t t'
-        | TConstr (_, tl) -> occurs_in t tl
         | TFun (tf1, tf2) -> occurs_in t [tf1;tf2]
         | _ -> false
 
 and occurs_in t types =
     List.exists (fun t2 -> occurs_in_type t t2) types
+
 
 let rec is_type t1 t2 =
     let t1 = prune t1 in
@@ -178,10 +174,6 @@ let rec unify t1 t2 pos =
     | (TString, TString) | (TList TChar, TString) | (TString, TList TChar) -> ()
     | (TList tl, TList tr) ->
         unify tl tr pos
-    | (TConstr (s1, tl1), TConstr (s2, tl2)) when s1 = s2 ->
-        if List.length tl1 <> List.length tl2 then
-            error pos @@ "type mismatch between " ^ s_typ t2 ^ " and " ^ s_typ t1;
-        List.iter2 (fun a b -> unify a b pos) tl1 tl2
     | (TFun (t11, t12), TFun (t21, t22)) ->
         unify t11 t21 pos;
         unify t12 t22 pos

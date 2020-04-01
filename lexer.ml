@@ -3,19 +3,17 @@ open Syntax
 type t = {
     text : string;
     len : int;
-    filename : string;
     pos : source_pos;
     current : int;
 }
     
 let error lex msg =
-    raise (Error (lex.filename, lex.pos, msg))
+    raise (Error (lex.pos, msg))
 
 let init_lex filename text = {
     text = text;
     len = String.length text;
-    filename = filename;
-    pos = { line = 1; col = 1 };
+    pos = { filename = filename; line = 1; col = 1 };
     current = 0;
 }
 
@@ -32,7 +30,7 @@ let lexer filename text =
             { lex with pos = npos; current = lex.current + 1 }
     in
     let next_line lex =
-        let npos = { line = lex.pos.line + 1; col = 1 } in
+        let npos = { lex.pos with line = lex.pos.line + 1; col = 1 } in
         { lex with pos = npos; current = lex.current + 1 }
     in
     let rec skip_newline lex =

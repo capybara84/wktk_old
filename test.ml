@@ -34,63 +34,63 @@ let lexer_test_text = "
 /* 13 */ { } ( ) [ ] -> ,= ++ =/=
 "
 let lexer_test_tokens = [
-    (Newline, {line=1;col=1});
-    (Newline, {line=4;col=3});
-    (Id "identifier", {line=6;col=10});
-    (Id "Ident", {line=6;col=21});
-    (Lit (Int 12345), {line=6;col=27});
-    (Newline, {line=6;col=32});
-    (Lit (Char 'a'), {line=7;col=10});
-    (Lit (Char '\t'), {line=7;col=14});
-    (Lit (String "abc\n"), {line=7;col=19});
-    (Newline, {line=7;col=26});
-    (Newline, {line=9;col=1});
-    (Let, {line=11;col=10});
-    (If, {line=11;col=14});
-    (Then, {line=11;col=17});
-    (Else, {line=11;col=22});
-    (Fn, {line=11;col=27});
-    (Newline, {line=11;col=29});
-    (Semi, {line=12;col=10});
-    (Colon, {line=12;col=12});
-    (DColon, {line=12;col=14});
-    (Comma, {line=12;col=17});
-    (Dot, {line=12;col=19});
-    (Null, {line=12;col=21});
-    (Vertical, {line=12;col=24});
-    (Ques, {line=12;col=26});
-    (Eq, {line=12;col=28});
-    (LOr, {line=12;col=30});
-    (LAnd, {line=12;col=33});
-    (Eql, {line=12;col=36});
-    (Neq, {line=12;col=39});
-    (LT, {line=12;col=42});
-    (LE, {line=12;col=44});
-    (GT, {line=12;col=47});
-    (GE, {line=12;col=49});
-    (Plus, {line=12;col=52});
-    (Minus, {line=12;col=54});
-    (Star, {line=12;col=56});
-    (Slash, {line=12;col=58});
-    (Percent, {line=12;col=60});
-    (Not, {line=12;col=62});
-    (Unit, {line=12;col=64});
-    (Newline, {line=12;col=66});
-    (LBrace, {line=13;col=10});
-    (RBrace, {line=13;col=12});
-    (LParen, {line=13;col=14});
-    (RParen, {line=13;col=16});
-    (LBracket, {line=13;col=18});
-    (RBracket, {line=13;col=20});
-    (RArrow, {line=13;col=22});
-    (Op ",=", {line=13;col=25});
-    (Op "++", {line=13;col=28});
-    (Op "=/=", {line=13;col=31});
-    (Newline, {line=13;col=34});
+    (Newline, {filename="test";line=1;col=1});
+    (Newline, {filename="test";line=4;col=3});
+    (Id "identifier", {filename="test";line=6;col=10});
+    (Id "Ident", {filename="test";line=6;col=21});
+    (Lit (Int 12345), {filename="test";line=6;col=27});
+    (Newline, {filename="test";line=6;col=32});
+    (Lit (Char 'a'), {filename="test";line=7;col=10});
+    (Lit (Char '\t'), {filename="test";line=7;col=14});
+    (Lit (String "abc\n"), {filename="test";line=7;col=19});
+    (Newline, {filename="test";line=7;col=26});
+    (Newline, {filename="test";line=9;col=1});
+    (Let, {filename="test";line=11;col=10});
+    (If, {filename="test";line=11;col=14});
+    (Then, {filename="test";line=11;col=17});
+    (Else, {filename="test";line=11;col=22});
+    (Fn, {filename="test";line=11;col=27});
+    (Newline, {filename="test";line=11;col=29});
+    (Semi, {filename="test";line=12;col=10});
+    (Colon, {filename="test";line=12;col=12});
+    (DColon, {filename="test";line=12;col=14});
+    (Comma, {filename="test";line=12;col=17});
+    (Dot, {filename="test";line=12;col=19});
+    (Null, {filename="test";line=12;col=21});
+    (Vertical, {filename="test";line=12;col=24});
+    (Ques, {filename="test";line=12;col=26});
+    (Eq, {filename="test";line=12;col=28});
+    (LOr, {filename="test";line=12;col=30});
+    (LAnd, {filename="test";line=12;col=33});
+    (Eql, {filename="test";line=12;col=36});
+    (Neq, {filename="test";line=12;col=39});
+    (LT, {filename="test";line=12;col=42});
+    (LE, {filename="test";line=12;col=44});
+    (GT, {filename="test";line=12;col=47});
+    (GE, {filename="test";line=12;col=49});
+    (Plus, {filename="test";line=12;col=52});
+    (Minus, {filename="test";line=12;col=54});
+    (Star, {filename="test";line=12;col=56});
+    (Slash, {filename="test";line=12;col=58});
+    (Percent, {filename="test";line=12;col=60});
+    (Not, {filename="test";line=12;col=62});
+    (Unit, {filename="test";line=12;col=64});
+    (Newline, {filename="test";line=12;col=66});
+    (LBrace, {filename="test";line=13;col=10});
+    (RBrace, {filename="test";line=13;col=12});
+    (LParen, {filename="test";line=13;col=14});
+    (RParen, {filename="test";line=13;col=16});
+    (LBracket, {filename="test";line=13;col=18});
+    (RBracket, {filename="test";line=13;col=20});
+    (RArrow, {filename="test";line=13;col=22});
+    (Op ",=", {filename="test";line=13;col=25});
+    (Op "++", {filename="test";line=13;col=28});
+    (Op "=/=", {filename="test";line=13;col=31});
+    (Newline, {filename="test";line=13;col=34});
 ]
 
 let src_token (tok, pos)  =
-    Printf.sprintf "    (%s, {line=%d;col=%d});" (s_token_src tok) pos.line pos.col
+    Printf.sprintf "    (%s, {filename=\"%s\";line=%d;col=%d});" (s_token_src tok) pos.filename pos.line pos.col
 
 let lexer_test verbose =
     print_string "Lexer Test: ";
@@ -99,10 +99,10 @@ let lexer_test verbose =
         let expected = List.length lexer_test_tokens in
         let actual = List.length tokens in
         test_eq expected actual @@ "Length " ^ string_of_int expected ^ " != " ^ string_of_int actual;
-        (*
+(* 
         print_newline ();
         List.iter (fun x -> print_endline @@ src_token x) @@ L.lexer "test" lexer_test_text;
-        *)
+*)
         List.iter2
             (fun t1 t2 ->
                 if verbose then
@@ -112,7 +112,7 @@ let lexer_test verbose =
             ) lexer_test_tokens tokens;
         print_newline ()
     with Invalid_argument s -> test_fail @@ "Invalid_argument: " ^ s
-        | Error (filename, pos, msg) -> test_fail @@ Printf.sprintf "%s, line=%d, col=%d: Error: %s" filename pos.line pos.col msg)
+        | Error (pos, msg) -> test_fail @@ s_pos pos ^ "Error: " ^ msg)
 
 
 let parser_test_texts = [
@@ -174,13 +174,13 @@ let parser_test verbose =
             let toks = L.lexer "test" text in
             if verbose then
                 print_endline @@ "tokens   > " ^ s_token_src_list toks;
-            let s = s_expr_src @@ P.parse "" toks in
+            let s = s_expr_src @@ P.parse toks in
             if verbose then begin
                 print_endline @@ "expected > " ^ expected;
                 print_endline @@ "parsed   > " ^ s
             end;
             test_eq s expected (s ^ " != " ^ expected)
-        with Error (_, pos, msg) -> test_fail @@ Printf.sprintf "line=%d, col=%d: Error: %s" pos.line pos.col msg
+        with Error (pos, msg) -> test_fail @@ (s_pos pos) ^ "Error: " ^ msg
     in
     List.iter do_parse parser_test_texts;
     print_newline ()
@@ -189,10 +189,10 @@ let test_print verbose =
     List.iter ( fun (text, _) ->
             try
                 if verbose then print_string @@ "text  > " ^ text ^ "\nresult> ";
-                let e = P.parse "" @@ L.lexer "" text in
+                let e = P.parse @@ L.lexer "" text in
                 print_endline @@ s_expr_src e;
                 if verbose then print_endline @@ "      > " ^ s_expr e
-            with Error (_, pos, msg) -> Printf.printf "line=%d, col=%d: Error: %s\n" pos.line pos.col msg
+            with Error (pos, msg) -> print_endline @@ s_pos pos ^ "Error: " ^ msg
         ) parser_test_texts;
     print_newline ()
 
@@ -269,7 +269,7 @@ let type_test verbose =
             let toks = L.lexer "test" text in
             if verbose then
                 print_endline @@ "tokens  > " ^ s_token_src_list toks;
-            let pars = P.create_parser "test" toks in
+            let pars = P.create_parser toks in
             let e = P.parse_expr pars in
             if verbose then
                 print_endline @@ "parsed  > " ^ s_expr_src e;
@@ -278,7 +278,7 @@ let type_test verbose =
             if verbose then
                 print_endline @@ "infer   > " ^ s;
             test_eq s expected (s ^ " != " ^ expected)
-        with Error (_, pos, msg) -> test_fail @@ Printf.sprintf "line=%d, col=%d: Error: %s" pos.line pos.col msg
+        with Error (pos, msg) -> test_fail @@ s_pos pos ^ "Error: " ^ msg
     in
     List.iter do_test type_test_texts;
     print_newline ()
