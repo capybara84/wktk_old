@@ -17,6 +17,8 @@ type token_decl =
 type token = token_decl * source_pos
 
 type typ =
+    | TUnit | TBool | TInt | TChar | TFloat | TString
+    | TList of typ
     | TConstr of string * typ list
     | TFun of typ * typ
     | TVar of int * typ option ref
@@ -115,8 +117,9 @@ let s_typ ty =
         in
         let (m, str) =
             match ty with
-            | TConstr ("list", [TConstr ("char", [])])
-                -> (3, "string")
+            | TUnit -> (3, "unit") | TBool -> (3, "bool") | TInt -> (3, "int") | TChar -> (3, "char")
+            | TFloat -> (3, "float") | TString -> (3, "string")
+            | TList t -> (3, to_s 0 t ^ " list")
             | TConstr (name, tl) -> (3, s_typ_list tl ^ name)
             | TFun (t1, t2) ->
                 let s1 = to_s 1 t1 in
@@ -155,8 +158,9 @@ let s_typ_raw ty =
         in
         let (m, str) =
             match ty with
-            | TConstr ("list", [TConstr ("char", [])])
-                -> (3, "string")
+            | TUnit -> (3, "unit") | TBool -> (3, "bool") | TInt -> (3, "int") | TChar -> (3, "char")
+            | TFloat -> (3, "float") | TString -> (3, "string")
+            | TList t -> (3, to_s 0 t ^ " list")
             | TConstr (name, tl) -> (3, s_typ_list tl ^ name)
             | TFun (t1, t2) ->
                 let s1 = to_s 1 t1 in

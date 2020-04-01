@@ -33,22 +33,18 @@ let get_tnum = function
     | _ -> failwith "tnum"
 
 let t_constr name typlist = TConstr (name, typlist)
-let t_unit = t_constr "unit" []
-let t_bool = t_constr "bool" []
-let t_int = t_constr "int" []
-let t_char = t_constr "char" []
-let t_float = t_constr "float" []
-let t_list t = t_constr "list" [t]
-let t_string = t_list t_char
 
 let new_list () =
-    t_list (new_tvar ())
+    TList (new_tvar ())
 
 let new_type_schema ty =
     { vars = []; body = ty }
 
 let rec equal t1 t2 =
     match (t1, t2) with
+    | (TUnit, TUnit) | (TBool, TBool) | (TInt, TInt) | (TChar, TChar)
+    | (TFloat, TFloat) | (TString, TString)
+    | (TList TChar, TString) | (TString, TList TChar) -> true
     | (TConstr (s1, tl1), TConstr (s2, tl2)) ->
         s1 = s2 && list_equal (tl1, tl2)
     | (TFun (t11, t12), TFun (t21, t22)) ->
@@ -72,9 +68,12 @@ and list_equal = function
         else false
 
 let rec unwrap_var free_vars = function
+    | TList ty ->
+        let (free_vars, unwrapped_t) = unwrap_var free_vars ty in
+        (free_vars, TList unwrapped_t)
     | TConstr (s, tl) ->
-        let (free_vars, new_tl) = unwrap_tl_var free_vars [] tl in
-        (free_vars, TConstr (s, new_tl))
+        let (free_vars, unwrapped_tl) = unwrap_tl_var free_vars [] tl in
+        (free_vars, TConstr (s, unwrapped_tl))
     | TFun (t1, t2) ->
         let (free_vars, t1') = unwrap_var free_vars t1 in
         let (free_vars, t2') = unwrap_var free_vars t2 in
@@ -87,6 +86,7 @@ let rec unwrap_var free_vars = function
     | TVar (_, ({contents = Some t})) ->
         let (free_vars, new_t) = unwrap_var free_vars t in
         (free_vars, new_t)
+    | t -> (free_vars, t)
 and unwrap_tl_var free_vars new_tl = function
     | [] -> (free_vars, List.rev new_tl)
     | x::xs ->
@@ -106,11 +106,13 @@ let create_alpha_equivalent ts =
             fresh_vars (n::res_vars) ((x, ty)::res_map) xs
     in
     let rec subst map = function
+        | TList t -> TList (subst map t)
         | TConstr (s, tl) -> TConstr (s, List.map (subst map) tl)
         | TFun (t1, t2) -> TFun (subst map t1, subst map t2)
         | TVar (_, {contents = Some t}) -> subst map t
         | TVar (n, {contents = None}) as t ->
             (try List.assoc n map with Not_found -> t)
+        | t -> t
     in
     let (new_vars, var_map) = fresh_vars [] [] ts.vars in
     { vars = new_vars; body = subst var_map ts.body }
@@ -138,6 +140,7 @@ let rec occurs_in_type t t2 =
     if type_var_equal t t2 then true
     else
         match t2 with
+        | TList t' -> occurs_in_type t t'
         | TConstr (_, tl) -> occurs_in t tl
         | TFun (tf1, tf2) -> occurs_in t [tf1;tf2]
         | _ -> false
@@ -145,14 +148,36 @@ let rec occurs_in_type t t2 =
 and occurs_in t types =
     List.exists (fun t2 -> occurs_in_type t t2) types
 
+let rec is_type t1 t2 =
+    let t1 = prune t1 in
+    let t2 = prune t2 in
+    match t1, t2 with
+    | (TVar (_, {contents=Some t1'}), _) -> is_type t1' t2
+    | (_, TVar (_, {contents=Some t2'})) -> is_type t1 t2'
+    | (TList TChar, TString)
+    | (TString, TList TChar) -> true
+    | _ when t1 = t2 -> true
+    | _ -> false
+
+let is_type_in t tl =
+    List.exists (fun t2 -> is_type t t2) tl
+
+let is_tvar t =
+    let t = prune t in
+    match t with
+    | TVar _ -> true
+    | _ -> false
+
+
 let rec unify t1 t2 pos =
-    if equal t1 t_unit && equal t2 t_unit then ();
-    if equal t1 t_bool && equal t2 t_bool then ();
-    if equal t1 t_int && equal t2 t_int then ();
-    if equal t1 t_char && equal t2 t_char then ();
-    if equal t1 t_float && equal t2 t_float then ();
-    if equal t1 t_string && equal t2 t_string then ();
-    match (t1, t2) with
+    debug_type_in @@ "unify: " ^ s_typ_raw t1 ^ ", " ^ s_typ_raw t2;
+    let t1 = prune t1 in
+    let t2 = prune t2 in
+    (match (t1, t2) with
+    | (TUnit, TUnit) | (TBool, TBool) | (TInt, TInt) | (TChar, TChar) | (TFloat, TFloat)
+    | (TString, TString) | (TList TChar, TString) | (TString, TList TChar) -> ()
+    | (TList tl, TList tr) ->
+        unify tl tr pos
     | (TConstr (s1, tl1), TConstr (s2, tl2)) when s1 = s2 ->
         if List.length tl1 <> List.length tl2 then
             error pos @@ "type mismatch between " ^ s_typ t2 ^ " and " ^ s_typ t1;
@@ -167,130 +192,161 @@ let rec unify t1 t2 pos =
         if occurs_in_type t1 t2 then
             error pos @@ "type circularity between " ^ s_typ t1 ^ " and " ^ s_typ t2
         else begin
+            debug_type @@ "unify result " ^ s_typ_raw t1 ^ " ... ";
             r1 := Some t2;
+            debug_type @@ "... " ^ s_typ_raw t1
         end
     | (_, TVar (_, ({contents = None} as r2))) ->
         if occurs_in_type t2 t1 then
             error pos @@ "type circularity between " ^ s_typ t2 ^ " and " ^ s_typ t1
         else begin
+            debug_type @@ "unify result " ^ s_typ_raw t2 ^ " ... ";
             r2 := Some t1;
+            debug_type @@ "... " ^ s_typ_raw t2
         end
-    | (_, _) -> error pos @@ "type mismatch between " ^ s_typ t2 ^ " and " ^ s_typ t1
+    | (_, _) -> error pos @@ "type mismatch between " ^ s_typ t2 ^ " and " ^ s_typ t1);
+    debug_type_out @@ "unify"
 
 let rec infer tenv e =
     debug_type_in @@ "infer: " ^ s_expr e;
     let infer_unary op t pos =
-        debug_type_in @@ "infer_unary: '" ^ s_unop op ^ "' " ^ s_typ t;
+        debug_type_in @@ "infer_unary: '" ^ s_unop op ^ "', " ^ s_typ_raw t;
         let res =
             match op with
             | UMinus ->
-                if equal t t_int then t_int
-                else if equal t t_float then t_float
+                if is_type t TInt then TInt
+                else if is_type t TFloat then TFloat
                 else error pos @@ "The unary minus expression has type " ^ s_typ t ^ " but an expression was expected of type int/float"
             | UNot ->
-                if equal t t_bool then t_bool
+                if is_type t TBool then TBool
                 else error pos @@ "The unary not expression has type " ^ s_typ t ^ " but an expression was expected of type int"
         in
-        debug_type_out @@ "infer_unary: " ^ s_typ res;
+        debug_type_out @@ "infer_unary = " ^ s_typ_raw res;
         res
     in
     let infer_binary op tl tr pos =
-        debug_type_in @@ "infer_binary: '" ^ s_binop op ^ "' " ^ s_typ tl ^ " " ^ s_typ tr;
+        debug_type_in @@ "infer_binary: '" ^ s_binop op ^ "', " ^ s_typ_raw tl ^ ", " ^ s_typ_raw tr;
         let res =
             match op with
             | BinAdd | BinSub | BinMul | BinDiv | BinMod ->
                 unify tl tr pos;
-                if equal tl t_int || equal tl t_float then tl
-                else error pos @@ "The binary expression has type " ^ s_typ tl ^ " but an expression was expected of type int/float"
+                if is_type_in tl [TInt;TFloat] || is_tvar tl then tl
+                else
+                    error pos @@ "The binary expression has type " ^ s_typ tl ^
+                                    " but an expression was expected of type int/float"
             | BinLT | BinLE | BinGT | BinGE ->
                 unify tl tr pos;
-                if equal tl t_char || equal tl t_int || equal tl t_float || equal tl t_string then t_bool
-                else error pos @@ "The relational expression has type " ^ s_typ tl ^ " but an expression was expected of type char/int/float/string"
+                if is_type_in tl [TChar;TInt;TFloat;TString;TList TChar] || is_tvar tl then TBool
+                else error pos @@ "The relational expression has type " ^ s_typ tl ^
+                                    " but an expression was expected of type char/int/float/string"
             | BinEql | BinNeq ->
                 unify tl tr pos;
-                t_bool
+                TBool
             | BinLOr | BinLAnd -> 
-                unify t_bool tl pos;
-                unify t_bool tr pos;
-                t_bool
+                unify TBool tl pos;
+                unify TBool tr pos;
+                TBool
             | BinCons ->
-                unify (t_list tl) tr pos;
+                unify (TList tl) tr pos;
                 tr
             | _ -> failwith "infer_binary"
         in
-        debug_type_out @@ "infer_binary: " ^ s_typ res;
+        debug_type_out @@ "infer_binary = " ^ s_typ_raw res;
         res
     in
     let res =
         match e with
-        | (ENull, _) -> (tenv, new_list ())
-        | (EUnit, _) -> (tenv, t_unit)
-        | (ELit (Int _), _) -> (tenv, t_int)
-        | (ELit (Char _), _) -> (tenv, t_char)
-        | (ELit (Float _), _) -> (tenv, t_float)
-        | (ELit (String _), _) -> (tenv, t_string)
+        | (ENull, _) ->
+            debug_type "infer Null";
+            (tenv, new_list ())
+        | (EUnit, _) ->
+            debug_type "infer Unit";
+            (tenv, TUnit)
+        | (ELit (Int _), _) ->
+            debug_type "infer Int";
+            (tenv, TInt)
+        | (ELit (Char _), _) ->
+            debug_type "infer Char";
+            (tenv, TChar)
+        | (ELit (Float _), _) ->
+            debug_type "infer Float";
+            (tenv, TFloat)
+        | (ELit (String _), _) ->
+            debug_type "infer String";
+            (tenv, TString)
         | (EId s, pos) ->
+            debug_type @@ "infer Id " ^ s;
             let ts = (try !(Env.lookup s tenv) with Not_found -> error pos @@ "'" ^ s ^ "' not found") in
             let new_ts = create_alpha_equivalent ts in
             (tenv, new_ts.body)
         | (EUnary (op, e), pos) ->
+            debug_type @@ "infer unary '" ^ s_unop op ^ "', " ^ s_expr e;
             let (_, t) = infer tenv e in
             (tenv, infer_unary op t pos)
         | (EBinary (BinOp op, l, r), pos) ->
             (*TODO *)
-            (tenv, t_unit)
+            (tenv, TUnit)
         | (EBinary (op, l, r), pos) ->
+            debug_type @@ "infer binary '" ^ s_binop op ^ "', " ^ s_expr l ^ ", " ^ s_expr r;
             let (_, tl) = infer tenv l in
             let (_, tr) = infer tenv r in
             (tenv, infer_binary op tl tr pos)
         | (ECond (cond_e, then_e, else_e), pos) ->
+            debug_type @@ "infer cond " ^ s_expr cond_e ^ ", " ^ s_expr then_e ^ ", " ^ s_expr else_e;
             let (_, t_cond) = infer tenv cond_e in
-            unify t_bool t_cond pos;
+            unify TBool t_cond pos;
             let (_, t_then) = infer tenv then_e in
             let (_, t_else) = infer tenv else_e in
             unify t_then t_else pos;
             (tenv, t_then)
         | (ELambda ("()", body), _) ->
+            debug_type @@ "infer lambda () -> " ^ s_expr body;
             let (_, t_body) = infer tenv body in
-            (tenv, TFun (t_unit, t_body))
+            (tenv, TFun (TUnit, t_body))
         | (ELambda ("_", body), pos) ->
+            debug_type @@ "infer lambda _ -> " ^ s_expr body;
             let t_arg = new_tvar () in
             let (_, t_body) = infer tenv body in
             (tenv, TFun (t_arg, t_body))
         | (ELambda (arg, body), pos) ->
+            debug_type @@ "infer lambda " ^ arg  ^ " -> " ^ s_expr body;
             let t_arg = new_tvar () in
             let ts = new_type_schema t_arg in
             let tenv = Env.extend arg (ref ts) tenv in
             let (_, t_body) = infer tenv body in
             (tenv, TFun (t_arg, t_body))
         | (EApply (fn, arg), pos) ->
+            debug_type @@ "infer apply " ^ s_expr fn ^ ", " ^ s_expr arg;
             let (_, t_fn) = infer tenv fn in
             let (_, t_arg) = infer tenv arg in
             let t = new_tvar () in
             unify t_fn (TFun (t_arg, t)) pos;
             (tenv, t)
         | (ELet (id, e), _) ->
+            debug_type @@ "infer let " ^ id ^ " = " ^ s_expr e;
             let (_, t) = infer tenv e in
             let ts = create_poly_type t in
             let tenv = Env.extend id (ref ts) tenv in
-            (tenv, t_unit)
+            (tenv, TUnit)
         | (ELetRec (id, e), _) ->
+            debug_type @@ "infer letrec " ^ id ^ " = " ^ s_expr e;
             let r = ref (new_type_schema (new_tvar ())) in
             let tenv = Env.extend id r tenv in
             let (_, t) = infer tenv e in
             r := create_poly_type t;
-            (tenv, t_unit)
+            (tenv, TUnit)
         | (ESeq el, _) ->
+            debug_type @@ "infer seq " ^ s_list s_expr "; " el;
             let rec loop tenv = function
-                | [] -> (tenv, t_unit)
+                | [] -> (tenv, TUnit)
                 | x::[] ->
                     infer tenv x
                 | x::xs ->
                     let (tenv, t) = infer tenv x in
-                    if t <> t_unit then error (snd x) "expression should have type unit";
+                    if t <> TUnit then error (snd x) "expression should have type unit";
                     loop tenv xs
             in loop tenv el
     in
-    debug_type_out @@ "infer: " ^ s_typ (snd res);
+    debug_type_out @@ "infer = " ^ s_typ_raw (snd res);
     res
 
