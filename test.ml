@@ -283,9 +283,39 @@ let type_test verbose =
     List.iter do_test type_test_texts;
     print_newline ()
 
+let eval_test_texts = [
+    ("'a'", VChar 'a');
+]
+
+let eval_test verbose =
+    print_string "Eval Test: ";
+    let do_test (text, expected) =
+        try
+            if verbose then
+                print_endline @@ "\ntext    > " ^ text;
+            let toks = L.lexer "test" text in
+            if verbose then
+                print_endline @@ "tokens  > " ^ s_token_src_list toks;
+            let e = P.parse_expr @@ P.create_parser toks in
+            if verbose then
+                print_endline @@ "parsed  > " ^ s_expr_src e;
+            let (tenv, t) = Type.infer [] e in
+            if verbose then
+                print_endline @@ "infer   > " ^ s_typ t;
+            let (env, v) = Eval.eval [] e in
+            if verbose then
+                print_endline @@ "eval    > " ^ s_value v;
+            test_eq v expected (s_value v ^ " != " ^ s_value expected)
+        with Error (pos, msg) -> test_fail @@ (s_pos pos) ^ "Error: " ^ msg
+    in
+    List.iter do_test eval_test_texts;
+    print_newline ()
+
+
 let test verbose =
     lexer_test verbose;
     parser_test verbose;
     type_test verbose;
+    eval_test verbose;
     test_report ()
 

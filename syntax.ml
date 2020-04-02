@@ -47,10 +47,10 @@ type expr_decl =
 and expr = expr_decl * source_pos
 
 type value =
-    | VUnit | VNull
-    | VLit of lit
+    | VUnit | VNull | VBool of bool | VInt of int | VChar of char
+    | VFloat of float | VString of string
     | VCons of value * value
-    | VClosure of expr * expr * (value ref) Env.t
+    | VClosure of string * expr * (value ref) Env.t
     | VBuiltin of (value -> value)
 
 let error pos msg = raise (Error (pos, msg))
@@ -226,7 +226,11 @@ let s_vlit = function
 let rec s_value = function
     | VUnit -> "()"
     | VNull -> "[]"
-    | VLit lit -> s_vlit lit
+    | VBool b -> string_of_bool b
+    | VInt n -> string_of_int n
+    | VChar c -> String.make 1 c
+    | VFloat f -> string_of_float f
+    | VString s -> s
     | VCons (car, cdr) -> s_value car ^ "::" ^ s_value cdr
     | VClosure _ -> "<closure>"
     | VBuiltin _ -> "<builtin>"
