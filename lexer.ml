@@ -157,7 +157,7 @@ let lexer filename text =
             | 'A'..'Z' | 'a'..'z' | '_' ->
                 let (id, lex) = lex_ident lex in
                 let t = match id with
-                    | "let" -> Let | "if" -> If | "then" -> Then | "else" -> Else
+                    | "let" -> Let | "rec" -> Rec | "if" -> If | "then" -> Then | "else" -> Else
                     | "fn" -> Fn | _ -> Id id
                 in
                 get_tokens lex @@ make_tokens pos t

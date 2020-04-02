@@ -340,7 +340,9 @@ let rec infer tenv e =
                     let (tenv, t) = infer tenv x in
                     if t <> TUnit then error (snd x) "expression should have type unit";
                     loop tenv xs
-            in loop tenv el
+            in
+            let (_, t) = loop tenv el in
+            (tenv, t)
     in
     debug_type_out @@ "infer = " ^ s_typ_raw (snd res);
     res

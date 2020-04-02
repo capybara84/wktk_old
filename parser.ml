@@ -359,7 +359,12 @@ let_expr
 and parse_let_expr pars =
     debug_parse_in @@ "parse_let_expr: " ^ s_token_src_list pars.toks;
     next_token pars;
-    let res = parse_id_def false pars in
+    let g =  
+        if peek_token pars = Rec then
+            (next_token pars; true)
+        else false
+    in
+    let res = parse_id_def g pars in
     debug_parse_out @@ "parse_let_expr: " ^ s_expr_src res;
     res
 

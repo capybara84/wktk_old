@@ -8,4 +8,3 @@ let extend id value env =
 
 let lookup id env =
     List.assoc id env
-

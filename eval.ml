@@ -154,9 +154,9 @@ let rec eval env e =
             (env, VClosure (arg, body, env))
         | (EApply (fn, arg), pos) ->
             debug_eval @@ "eval apply " ^ s_expr fn ^ ", " ^ s_expr arg;
-            let (env, fn_part) = eval env fn in
-            let (env, arg_part) = eval env arg in
-            begin
+            let (_, fn_part) = eval env fn in
+            let (_, arg_part) = eval env arg in
+            let (_, v) =
                 match fn_part with
                 | VClosure ("_", body, old_env) ->
                     eval old_env body
@@ -168,7 +168,8 @@ let rec eval env e =
                 | VBuiltin fn ->
                     (env, fn arg_part)
                 | v -> error pos @@ "application of non-function: " ^ s_value v
-            end
+            in
+            (env, v)
         | (ELet (id, e), _) ->
             debug_eval @@ "eval let " ^ id ^ " = " ^ s_expr e;
             let (env, v) = eval env e in
@@ -183,7 +184,7 @@ let rec eval env e =
             (new_env, VUnit)
         | (ESeq el, pos) ->
             debug_eval @@ "eval seq " ^ s_list s_expr "; " el;
-            let (env, v) = eval_list pos env el in
+            let (_, v) = eval_list pos env el in
             (env, v)
     in
     debug_eval_out @@ "eval = " ^ s_value @@ snd res;

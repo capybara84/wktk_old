@@ -10,7 +10,7 @@ exception Error of source_pos * string
 type lit = Bool of bool | Int of int | Char of char | Float of float | String of string
 
 type token_decl =
-    | Eof | Newline | Id of string | Lit of lit | Op of string | Let | If | Then | Else | Fn
+    | Eof | Newline | Id of string | Lit of lit | Op of string | Let | Rec | If | Then | Else | Fn
     | Semi | Colon | DColon | Comma | Dot | Null | Unit | Vertical | Ques | Eq | LOr | LAnd
     | Eql | Neq | LT | LE | GT | GE | Plus | Minus | Star | Slash | Percent | Not
     | LBrace | RBrace | LParen | RParen | LBracket | RBracket | RArrow
@@ -96,7 +96,7 @@ let rec s_list to_s sep = function
 
 let s_token = function
     | Eof -> "<EOF>" | Newline -> "<NEWLINE>" | Id id -> id | Lit l -> s_lit l | Op s -> s
-    | Let -> "let" | If -> "if" | Then -> "then" | Else -> "else" | Fn -> "fn"
+    | Let -> "let" | Rec -> "rec" | If -> "if" | Then -> "then" | Else -> "else" | Fn -> "fn"
     | Semi -> ";" | Colon -> ":" | DColon -> "::" | Comma -> "," | Dot -> "." | Null -> "[]"
     | Unit -> "()" | Vertical -> "|" | Ques -> "?" | Eq -> "=" | LOr -> "||" | LAnd -> "&&"
     | Eql -> "==" | Neq -> "!=" | LT -> "<" | LE -> "<=" | GT -> ">" | GE -> ">="
@@ -248,7 +248,7 @@ let s_lit_src = function
 let s_token_src = function
     | Eof -> "Eof" | Newline -> "Newline" | Id id -> "Id " ^ quote id
     | Lit l -> "Lit (" ^ s_lit_src l ^ ")" | Op s -> "Op " ^ quote s
-    | Let -> "Let" | If -> "If" | Then -> "Then" | Else -> "Else" | Fn -> "Fn"
+    | Let -> "Let" | Rec -> "Rec" | If -> "If" | Then -> "Then" | Else -> "Else" | Fn -> "Fn"
     | Semi -> "Semi" | Colon -> "Colon" | DColon -> "DColon" | Comma -> "Comma"
     | Dot -> "Dot" | Null -> "Null" | Unit -> "Unit" | Vertical -> "Vertical"
     | Ques -> "Ques" | Eq -> "Eq" | LOr -> "LOr" | LAnd -> "LAnd"

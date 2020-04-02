@@ -290,30 +290,101 @@ let eval_test_texts = [
     ("300 + 12", VInt 312);
     ("300 * 12 + 3", VInt 3603);
     ("300 * (12 + 3)", VInt 4500);
+    ("300 / (12 - 3)", VInt 33);
+    ("300 % (12 - 3)", VInt 3);
+    ("1 < 2", VBool true);
+    ("1 <= 1", VBool true);
+    ("1 > 2", VBool false);
+    ("2 >= 2", VBool true);
+    ("2 == 2", VBool true);
+    ("2 == 1", VBool false);
+    ("2 != 1", VBool true);
+    ("2 != 2", VBool false);
+    ("'a' == 'a'", VBool true);
+    ("'a' == 'b'", VBool false);
+    ("'a' != 'a'", VBool false);
+    ("'a' != 'b'", VBool true);
+    ("'a' < 'b'", VBool true);
+    ("'b' < 'a'", VBool false);
+    ("'a' <= 'a'", VBool true);
+    ("'b' <= 'a'", VBool false);
+    ("'a' > 'b'", VBool false);
+    ("'b' > 'a'", VBool true);
+    ("'a' >= 'b'", VBool false);
+    ("'a' >= 'a'", VBool true);
+    ("\"abc\" == \"abc\"", VBool true);
+    ("\"abc\" == \"def\"", VBool false);
+    ("\"abc\" != \"abc\"", VBool false);
+    ("\"abc\" != \"def\"", VBool true);
+    ("\"abc\" < \"def\"", VBool true);
+    ("\"abc\" > \"def\"", VBool false);
+    ("1 > 2 || 2 > 1", VBool true);
+    ("1 < 2 && 2 < 1", VBool false);
+    ("-5", VInt (-5));
+    ("1::[2,3]", VCons (VInt 1, VCons (VInt 2, VCons (VInt 3, VNull))));
+    ("1::2::[3]", VCons (VInt 1, VCons (VInt 2, VCons (VInt 3, VNull))));
+    ("[1,2,3]", VCons (VInt 1, VCons (VInt 2, VCons (VInt 3, VNull))));
+    ("[1,2,3] == 1::[2,3]", VBool true);
+    ("[1,2,3] == 1::[2,3,4]", VBool false);
+    ("{ let x = 1; x }", VInt 1);
+    ("let x = 2", VUnit);
+    ("x", VInt 2);
+    ("let f = fn () -> 5", VUnit);
+    ("f ()", VInt 5);
+    ("let g = fn _ -> 8", VUnit);
+    ("g 3", VInt 8);
+    ("let a = fn x -> x + 1", VUnit);
+    ("a 4", VInt 5);
+    ("let add = fn x -> fn y -> x + y", VUnit);
+    ("add 1 2", VInt 3);
+    ("let add5 = add 5", VUnit);
+    ("add5 3", VInt 8);
+    ("let foo = fn x -> x + 2", VUnit);
+    ("foo 4", VInt 6);
+    ("let rec fact = fn n -> if n < 1 then 1 else n * fact (n-1)", VUnit);
+    ("fact 5", VInt 120);
 ]
+
+let env_print env =
+    print_string "Env [";
+    let rec aux = function
+        | [] -> ()
+        | x::xs ->
+            Printf.printf "(%s, %s)" (fst x) (s_value !(snd x));
+            aux xs
+    in aux env;
+    print_endline "]"
 
 let eval_test verbose =
     print_string "Eval Test: ";
-    let do_test (text, expected) =
+    let do_test (env, tenv) (text, expected) =
         try
+            (*
+            print_endline "do_test";
+            env_print env;
+            *)
             if verbose then
-                print_endline @@ "\ntext    > " ^ text;
+                print_endline @@ "text    > " ^ text;
             let toks = L.lexer "test" text in
             if verbose then
                 print_endline @@ "tokens  > " ^ s_token_src_list toks;
             let e = P.parse_expr @@ P.create_parser toks in
             if verbose then
                 print_endline @@ "parsed  > " ^ s_expr_src e;
-            let (tenv, t) = Type.infer [] e in
+            let (new_tenv, t) = Type.infer tenv e in
             if verbose then
                 print_endline @@ "infer   > " ^ s_typ t;
-            let (env, v) = Eval.eval [] e in
+            let (new_env, v) = Eval.eval env e in
             if verbose then
                 print_endline @@ "eval    > " ^ s_value v;
-            test_eq v expected (s_value v ^ " != " ^ s_value expected)
-        with Error (pos, msg) -> test_fail @@ (s_pos pos) ^ "Error: " ^ msg
+            test_eq v expected (s_value v ^ " != " ^ s_value expected);
+            (*
+            env_print new_env;
+            *)
+            (new_env, new_tenv)
+        with Error (pos, msg) -> test_fail @@ (s_pos pos) ^ "Error: " ^ msg; (env, tenv)
     in
-    List.iter do_test eval_test_texts;
+    ignore @@ List.fold_left (fun env test -> do_test env test) ([],[]) eval_test_texts;
     print_newline ()
 
 
