@@ -35,6 +35,7 @@ type expr_decl =
     | ENull | EUnit
     | ELit of lit
     | EId of string
+    | EParen of expr
     | EUnary of unop * expr
     | EBinary of binop * expr * expr
     | ECond of expr * expr * expr
@@ -206,6 +207,7 @@ let s_unop = function UNot -> "!" | UMinus -> "-"
 let rec s_expr = function
     | (ENull, _) -> "[]" | (EUnit, _) -> "()"
     | (ELit l, _) -> s_lit l | (EId s, _) -> s
+    | (EParen e, _) -> "(" ^ s_expr e ^ ")"
     | (EUnary (op, e), _) -> "(unary '" ^ s_unop op ^ "' " ^ s_expr e ^ ")"
     | (EBinary (op, l, r), _) -> "(binary '" ^ s_binop op ^ "' " ^ s_expr l ^ " " ^ s_expr r ^ ")"
     | (ECond (c, t, e), _) -> "(cond " ^ s_expr c ^ " then " ^ s_expr t ^ " else " ^ s_expr e ^ ")"
@@ -268,6 +270,7 @@ let s_unop_src = function UNot -> "UNot" | UMinus -> "UMinus"
 let rec s_expr_src = function
     | (ENull, _) -> "ENull" | (EUnit, _) -> "EUnit"
     | (ELit l, _) -> "(ELit (" ^ s_lit_src l ^ "))" | (EId s, _) -> "(EId " ^ quote s ^ ")"
+    | (EParen e, _) -> "(EParen " ^ s_expr_src e ^ ")"
     | (EUnary (op, e), _) -> "(EUnary (" ^ s_unop_src op ^ ", " ^ s_expr_src e ^ "))"
     | (EBinary (op, l, r), _) -> "(EBinary (" ^ s_binop_src op ^ ", " ^ s_expr_src l ^ ", " ^ s_expr_src r ^ "))"
     | (ECond (c, t, e), _) -> "(ECond (" ^ s_expr_src c ^ ", " ^ s_expr_src t ^ ", " ^ s_expr_src e ^ "))"

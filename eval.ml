@@ -117,6 +117,9 @@ let rec eval env e =
                 with Not_found -> error pos @@ "'" ^ id ^ "' not found"
             in
             (env, v)
+        | (EParen e, _) ->
+            debug_eval @@ "eval paren " ^ s_expr e;
+            eval env e
         | (EUnary (op, e), pos) ->
             debug_eval @@ "eval unary '" ^ s_unop op ^ "' , " ^ s_expr e;
             let (env, v) = eval env e in

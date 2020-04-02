@@ -148,11 +148,11 @@ let parser_test_texts = [
     ("_ = foo ()",              "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), EUnit))))])");
     ("_ = foo 1",               "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
     ("_ = foo 1 2",             "(ESeq [(ELetRec (\"_\", (EApply ((EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
-    ("_ = foo (1)",             "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (ELit (Int 1))))))])");
+    ("_ = foo (1)",             "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (EParen (ELit (Int 1)))))))])");
     ("_ = foo [1,2]",
         "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), ENull))))))))])");
     ("_ = foo 1::2",            "(ESeq [(ELetRec (\"_\", (EBinary (BinCons, (EApply ((EId \"foo\"), (ELit (Int 1)))), (ELit (Int 2))))))])");
-    ("_ = foo (1::2)",          "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (EBinary (BinCons, (ELit (Int 1)), (ELit (Int 2))))))))])");
+    ("_ = foo (1::2)",          "(ESeq [(ELetRec (\"_\", (EApply ((EId \"foo\"), (EParen (EBinary (BinCons, (ELit (Int 1)), (ELit (Int 2)))))))))])");
     ("_ = -11",                 "(ESeq [(ELetRec (\"_\", (EUnary (UMinus, (ELit (Int 11))))))])");
     ("_ = !2",                  "(ESeq [(ELetRec (\"_\", (EUnary (UNot, (ELit (Int 2))))))])");
     ("_ = a",                   "(ESeq [(ELetRec (\"_\", (EId \"a\")))])");
@@ -162,7 +162,7 @@ let parser_test_texts = [
     ("_ = []",                  "(ESeq [(ELetRec (\"_\", ENull))])");
     ("_ = 'a'",                 "(ESeq [(ELetRec (\"_\", (ELit (Char 'a'))))])");
     ("_ = \"abc\"",             "(ESeq [(ELetRec (\"_\", (ELit (String \"abc\"))))])");
-    ("_ = (23)",                "(ESeq [(ELetRec (\"_\", (ELit (Int 23))))])");
+    ("_ = (23)",                "(ESeq [(ELetRec (\"_\", (EParen (ELit (Int 23)))))])");
 ]
 
 let parser_test verbose =
@@ -285,6 +285,11 @@ let type_test verbose =
 
 let eval_test_texts = [
     ("'a'", VChar 'a');
+    ("\"abc\"", VString "abc");
+    ("12", VInt 12);
+    ("300 + 12", VInt 312);
+    ("300 * 12 + 3", VInt 3603);
+    ("300 * (12 + 3)", VInt 4500);
 ]
 
 let eval_test verbose =

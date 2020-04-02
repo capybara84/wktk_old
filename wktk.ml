@@ -34,6 +34,7 @@ let () =
             ("-p", Arg.Unit (fun () -> do_print := true), " print expression");
             ("-dp", Arg.Unit (fun () -> Parser.debug_scope_flag := true), " debug parser");
             ("-dt", Arg.Unit (fun () -> Type.debug_scope_flag := true), " debug type");
+            ("-de", Arg.Unit (fun () -> Eval.debug_scope_flag := true), " debug eval");
         ]
         (fun name -> filenames := name :: !filenames)
         "usage: wktk [-v]][-t][-tp][-p][-dp][-dt] filename...";

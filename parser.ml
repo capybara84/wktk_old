@@ -66,6 +66,7 @@ let expect pars tok =
 
 let is_apply e pars =
     match e with
+    | (EParen _, _)
     | (ELambda _, _)
     | (EApply _, _)
     | (EId _, _) ->
@@ -181,7 +182,7 @@ and parse_simple_expr pars =
             skip_newline pars;
             let expr = parse_expr pars in
             expect pars RParen;
-            expr
+            make_expr (EParen expr) pos
         | Eof ->
             debug_parse "EOF";
             raise End_of_file

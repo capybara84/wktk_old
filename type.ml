@@ -271,6 +271,9 @@ let rec infer tenv e =
             let ts = (try !(Env.lookup s tenv) with Not_found -> error pos @@ "'" ^ s ^ "' not found") in
             let new_ts = create_alpha_equivalent ts in
             (tenv, new_ts.body)
+        | (EParen e, _) ->
+            debug_type @@ "infer paren " ^ s_expr e;
+            infer tenv e
         | (EUnary (op, e), pos) ->
             debug_type @@ "infer unary '" ^ s_unop op ^ "', " ^ s_expr e;
             let (_, t) = infer tenv e in
