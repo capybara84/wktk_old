@@ -20,19 +20,16 @@ let debug_parse_out s =
         (decr debug_indent; debug_parse @@ "OUT " ^ s)
 
 type parser = {
-    filename : string;
     mutable toks : token list;
 }
 
-let create_parser filename toks = { filename = filename; toks = toks }
+let create_parser toks = { toks = toks }
 
 let is_eof pars = pars.toks = []
 
-let eof_pos = { line = 0; col = 0 }
-
 let get_pos pars =
     if is_eof pars then
-        eof_pos
+        { filename = ""; line = 0; col = 0 }
     else
         snd @@ List.hd pars.toks
 
@@ -53,22 +50,23 @@ let rec skip_semi pars =
     if peek_token pars = Semi then
         next_token pars
 
-let error pars msg =
+let parse_error pars msg =
     let at_token =
         match peek_token pars with
         | Eof -> ""
         | x -> " at token '" ^ s_token x ^ "'"
     in
-    raise (Error (pars.filename, get_pos pars, msg ^ at_token))
+    error (get_pos pars) (msg ^ at_token)
 
 let expect pars tok =
     if peek_token pars <> tok then
-        error pars ("expect '" ^ s_token tok ^ "'")
+        parse_error pars ("expect '" ^ s_token tok ^ "'")
     else
         next_token pars
 
 let is_apply e pars =
     match e with
+    | (EParen _, _)
     | (ELambda _, _)
     | (EApply _, _)
     | (EId _, _) ->
@@ -184,11 +182,11 @@ and parse_simple_expr pars =
             skip_newline pars;
             let expr = parse_expr pars in
             expect pars RParen;
-            expr
+            make_expr (EParen expr) pos
         | Eof ->
             debug_parse "EOF";
             raise End_of_file
-        | _ -> error pars "syntax error"
+        | _ -> parse_error pars "syntax error"
     in
     debug_parse_out @@ "parse_simple_expr: " ^ s_expr_src res;
     res
@@ -361,7 +359,12 @@ let_expr
 and parse_let_expr pars =
     debug_parse_in @@ "parse_let_expr: " ^ s_token_src_list pars.toks;
     next_token pars;
-    let res = parse_id_def pars in
+    let g =  
+        if peek_token pars = Rec then
+            (next_token pars; true)
+        else false
+    in
+    let res = parse_id_def g pars in
     debug_parse_out @@ "parse_let_expr: " ^ s_expr_src res;
     res
 
@@ -412,7 +415,7 @@ and parse_params acc pars =
 id_def
     = ID '=' expr
 *)
-and parse_id_def pars =
+and parse_id_def global pars =
     debug_parse_in @@ "parse_id_def: " ^ s_token_src_list pars.toks;
     let pos = get_pos pars in
     let res =
@@ -422,8 +425,11 @@ and parse_id_def pars =
             expect pars Eq;
             skip_newline pars;
             let body = parse_expr pars in
-            make_expr (ELet (id, body)) pos
-        | _ -> error pars "expect identifier"
+            if global then
+                make_expr (ELetRec (id, body)) pos
+            else
+                make_expr (ELet (id, body)) pos
+        | _ -> parse_error pars "expect identifier"
     in
     debug_parse_out @@ "parse_id_def: " ^ s_expr_src res;
     res
@@ -440,7 +446,7 @@ let parse_program pars =
         else if peek_token pars = Semi then
             (next_token pars; aux acc pars)
         else
-            let e = parse_id_def pars in
+            let e = parse_id_def true pars in
             aux (e :: acc) pars
     in
     let pos = get_pos pars in
@@ -449,8 +455,8 @@ let parse_program pars =
     debug_parse_out @@ "parse_program: " ^ s_expr_src res;
     res
 
-let parse filename toks =
-    let pars = create_parser filename toks in
+let parse toks =
+    let pars = create_parser toks in
     parse_program pars
 
 

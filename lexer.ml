@@ -3,19 +3,14 @@ open Syntax
 type t = {
     text : string;
     len : int;
-    filename : string;
     pos : source_pos;
     current : int;
 }
     
-let error lex msg =
-    raise (Error (lex.filename, lex.pos, msg))
-
 let init_lex filename text = {
     text = text;
     len = String.length text;
-    filename = filename;
-    pos = { line = 1; col = 1 };
+    pos = { filename = filename; line = 1; col = 1 };
     current = 0;
 }
 
@@ -32,7 +27,7 @@ let lexer filename text =
             { lex with pos = npos; current = lex.current + 1 }
     in
     let next_line lex =
-        let npos = { line = lex.pos.line + 1; col = 1 } in
+        let npos = { lex.pos with line = lex.pos.line + 1; col = 1 } in
         { lex with pos = npos; current = lex.current + 1 }
     in
     let rec skip_newline lex =
@@ -83,14 +78,14 @@ let lexer filename text =
     let lex_char lex =
         let (c, lex) = get_char lex in
         if peek lex <> '\'' then
-            error lex "missing single-quote";
+            error lex.pos "missing single-quote";
         (Lit (Char c), next lex)
     in
     let lex_string lex =
         let buffer = Buffer.create 10 in
         let rec aux lex =
             if is_end lex then
-                error lex "unterminated string";
+                error lex.pos "unterminated string";
             let (c, lex) = get_char lex in
             match c with
             | '"' ->
@@ -117,7 +112,7 @@ let lexer filename text =
         let rec skip_nested_comment lex =
             let rec aux lex =
                 if is_end lex then
-                    error lex "unexpected eof"
+                    error lex.pos "unexpected eof"
                 else
                     match peek lex with
                     | '*' ->
@@ -162,7 +157,7 @@ let lexer filename text =
             | 'A'..'Z' | 'a'..'z' | '_' ->
                 let (id, lex) = lex_ident lex in
                 let t = match id with
-                    | "let" -> Let | "if" -> If | "then" -> Then | "else" -> Else
+                    | "let" -> Let | "rec" -> Rec | "if" -> If | "then" -> Then | "else" -> Else
                     | "fn" -> Fn | _ -> Id id
                 in
                 get_tokens lex @@ make_tokens pos t
@@ -193,7 +188,7 @@ let lexer filename text =
                     | "->" -> RArrow | _ -> Op op
                 in
                 get_tokens lex @@ make_tokens pos tk
-            | _ -> error lex @@ "Unknown character '" ^ escape_char (peek lex) ^ "'"
+            | _ -> error lex.pos @@ "Unknown character '" ^ escape_char (peek lex) ^ "'"
     in
     get_tokens (init_lex filename text) []
 
