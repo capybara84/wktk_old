@@ -7,7 +7,7 @@ type source_pos = {
 
 exception Error of source_pos * string
 
-type lit = Int of int | Char of char | Float of float | String of string
+type lit = Bool of bool | Int of int | Char of char | Float of float | String of string
 
 type token_decl =
     | Eof | Newline | Id of string | Lit of lit | Op of string | Let | If | Then | Else | Fn
@@ -46,6 +46,12 @@ type expr_decl =
 
 and expr = expr_decl * source_pos
 
+type value =
+    | VUnit | VNull
+    | VLit of lit
+    | VCons of value * value
+    | VClosure of expr * expr * (value ref) Env.t
+    | VBuiltin of (value -> value)
 
 let error pos msg = raise (Error (pos, msg))
 
@@ -75,6 +81,7 @@ let escape_str s =
 
 
 let s_lit = function
+    | Bool b -> string_of_bool b
     | Int i -> string_of_int i
     | Char c -> "'" ^ escape_char c ^ "'"
     | Float f -> string_of_float f
@@ -209,7 +216,24 @@ let rec s_expr = function
     | (ESeq el, _) -> "{ " ^ s_exprlist "; " el ^ " }"
 and s_exprlist sep = s_list s_expr sep
 
+let s_vlit = function
+    | Bool b -> string_of_bool b
+    | Int i -> string_of_int i
+    | Char c -> String.make 1 c
+    | Float f -> string_of_float f
+    | String s -> s
+
+let rec s_value = function
+    | VUnit -> "()"
+    | VNull -> "[]"
+    | VLit lit -> s_vlit lit
+    | VCons (car, cdr) -> s_value car ^ "::" ^ s_value cdr
+    | VClosure _ -> "<closure>"
+    | VBuiltin _ -> "<builtin>"
+
+
 let s_lit_src = function
+    | Bool b -> "Bool " ^ string_of_bool b
     | Int i -> "Int " ^ string_of_int i
     | Char c -> "Char '" ^ escape_char c ^ "'"
     | Float f -> "Float " ^ string_of_float f

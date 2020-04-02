@@ -251,6 +251,9 @@ let rec infer tenv e =
         | (EUnit, _) ->
             debug_type "infer Unit";
             (tenv, TUnit)
+        | (ELit (Bool _), _) ->
+            debug_type "infer Bool";
+            (tenv, TBool)
         | (ELit (Int _), _) ->
             debug_type "infer Int";
             (tenv, TInt)
