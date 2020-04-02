@@ -52,7 +52,7 @@ type value =
     | VFloat of float | VString of string
     | VCons of value * value
     | VClosure of string * expr * (value ref) Env.t
-    | VBuiltin of (value -> value)
+    | VBuiltin of (source_pos -> value -> value)
 
 let error pos msg = raise (Error (pos, msg))
 
