@@ -1,0 +1,23 @@
+
+length = fn x ->
+    if x == [] then 0
+    else 1 + length (tl x)
+
+map = fn f x ->
+    if x == [] then []
+    else f (hd x) :: map f (tl x)
+
+append = fn x y ->
+    if x == [] then y
+    else (hd x) :: append (tl x) y
+
+reverse = fn x ->
+    if x == [] then []
+    else append (reverse (tl x)) [hd x]
+
+filter = fn p x ->
+    if x == [] then []
+    else if p (hd x) then
+        (hd x) :: filter p (tl x)
+    else filter p (tl x)
+

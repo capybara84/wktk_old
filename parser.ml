@@ -443,16 +443,14 @@ let parse_program pars =
     let rec aux acc pars =
         debug_parse "parse_program aux";
         if is_eof pars then List.rev acc
-        else if peek_token pars = Semi then
+        else if peek_token pars = Semi || peek_token pars = Newline then
             (next_token pars; aux acc pars)
         else
             let e = parse_id_def true pars in
             aux (e :: acc) pars
     in
-    let pos = get_pos pars in
-    let el = aux [] pars in
-    let res = make_expr (ESeq el) pos in
-    debug_parse_out @@ "parse_program: " ^ s_expr_src res;
+    let res = aux [] pars in
+    debug_parse_out "parse_program";
     res
 
 let parse toks =
