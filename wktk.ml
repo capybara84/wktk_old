@@ -21,7 +21,7 @@ let load (env, tenv) filename =
         | End_of_file -> (env, tenv)
 
 
-let rec read_print_eval_loop verbose env tenv =
+let rec read_eval_print_loop verbose env tenv =
     try
         print_string "> ";
         flush stdout;
@@ -35,11 +35,11 @@ let rec read_print_eval_loop verbose env tenv =
         let (tenv, t) = Type.infer tenv e in
         let (env, v) = Eval.eval env e in
         print_endline @@ s_value v ^ " : " ^ s_typ t;
-        read_print_eval_loop verbose env tenv
+        read_eval_print_loop verbose env tenv
     with
         | Error (pos, msg) ->
             print_endline @@ s_pos pos ^ "Error: " ^ msg;
-            read_print_eval_loop verbose env tenv
+            read_eval_print_loop verbose env tenv
         | Sys_error s -> print_endline s
         | End_of_file -> ()
 
@@ -70,7 +70,7 @@ let () =
     else if !filenames <> [] then begin
         let (nenv, ntenv) = List.fold_left (fun e filename -> load e filename) (env, tenv) !filenames in
         if !interactive then
-            read_print_eval_loop !verbose nenv ntenv
+            read_eval_print_loop !verbose nenv ntenv
     end else
-        read_print_eval_loop !verbose env tenv
+        read_eval_print_loop !verbose env tenv
 
