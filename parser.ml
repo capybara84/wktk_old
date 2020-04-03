@@ -443,7 +443,7 @@ let parse_program pars =
     let rec aux acc pars =
         debug_parse "parse_program aux";
         if is_eof pars then List.rev acc
-        else if peek_token pars = Semi then
+        else if peek_token pars = Semi || peek_token pars = Newline then
             (next_token pars; aux acc pars)
         else
             let e = parse_id_def true pars in

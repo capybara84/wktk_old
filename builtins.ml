@@ -34,16 +34,23 @@ let builtins_list =
         ("hd", TFun (TList head_type, head_type), fn_head);
         ("tl", TFun (TList tail_type, TList tail_type), fn_tail);
     ]
+let builtin_var_list =
+[
+    ("true", TBool, VBool true);
+    ("false", TBool, VBool false);
+]
 
 let init () =
+    let add_var (env, tenv) (name, ty, v) =
+        let tenv = Env.extend name (ref (Type.new_type_schema ty)) tenv in
+        let env = Env.extend name (ref v) env in
+        (env, tenv)
+    in
     let add_func (env, tenv) (name, ty, fn) =
         let tenv = Env.extend name (ref (Type.new_type_schema ty)) tenv in
         let env = Env.extend name (ref (VBuiltin fn)) env in
         (env, tenv)
     in
-    let tenv = Env.extend "true" (ref (Type.new_type_schema TBool)) [] in
-    let env = Env.extend "true" (ref (VBool true)) [] in
-    let tenv = Env.extend "false" (ref (Type.new_type_schema TBool)) tenv in
-    let env = Env.extend "false" (ref (VBool false)) env in
+    let (env, tenv) = List.fold_left (fun env bv -> add_var env bv) ([], []) builtin_var_list in
     List.fold_left (fun env bs -> add_func env bs) (env, tenv) builtins_list
 

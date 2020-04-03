@@ -1,5 +1,25 @@
 open Syntax
 
+let load_file filename =
+    let ic = open_in filename in
+    let n = in_channel_length ic in
+    let text = really_input_string ic n in
+    close_in ic;
+    text
+
+let load (env, tenv) filename =
+    try
+        let text = load_file filename in
+        let e = Parser.parse @@ Lexer.lexer filename text in
+        let (ntenv, t) = Type.infer tenv e in
+        let (nenv, v) = Eval.eval env e in
+        (nenv, ntenv)
+    with
+        | Error (pos, msg) -> print_endline @@ s_pos pos ^ "Error: " ^ msg; (env, tenv)
+        | Sys_error s -> print_endline s; (env, tenv)
+        | End_of_file -> (env, tenv)
+
+
 let rec read_print_eval_loop verbose env tenv =
     try
         print_string "> ";
@@ -24,6 +44,7 @@ let rec read_print_eval_loop verbose env tenv =
 
 let () =
     let filenames = ref []
+    and interactive = ref false
     and verbose = ref false
     and do_test = ref false
     and do_test_print = ref false
@@ -31,6 +52,7 @@ let () =
     Arg.parse
         [
             ("-v", Arg.Unit (fun () -> verbose := true), " verbose");
+            ("-i", Arg.Unit (fun () -> interactive := true), " interactive");
             ("-t", Arg.Unit (fun () -> do_test := true), " unit test");
             ("-tp", Arg.Unit (fun () -> do_test_print := true), " test print");
             ("-dp", Arg.Unit (fun () -> Parser.debug_scope_flag := true), " debug parser");
@@ -40,11 +62,14 @@ let () =
         (fun name -> filenames := name :: !filenames)
         "usage: wktk [-v]][-t][-tp][-dp][-dt] filename...";
     let (env, tenv) = Builtins.init () in
-    List.iter (fun x -> print_endline x) !filenames;
     if !do_test then
         Test.test !verbose
     else if !do_test_print then
         Test.test_print !verbose
+    else if !filenames <> [] then
+        let (nenv, ntenv) = List.fold_left (fun e filename -> load e filename) (env, tenv) !filenames in
+        if !interactive then
+            read_print_eval_loop !verbose nenv ntenv
     else
         read_print_eval_loop !verbose env tenv
 

@@ -205,10 +205,12 @@ let rec infer tenv e =
             | UMinus ->
                 if is_type t TInt then TInt
                 else if is_type t TFloat then TFloat
-                else error pos @@ "The unary minus expression has type " ^ s_typ t ^ " but an expression was expected of type int/float"
+                else error pos @@ "The unary minus expression has type " ^ s_typ t ^
+                    " but an expression was expected of type int/float"
             | UNot ->
                 if is_type t TBool then TBool
-                else error pos @@ "The unary not expression has type " ^ s_typ t ^ " but an expression was expected of type int"
+                else error pos @@ "The unary not expression has type " ^ s_typ t ^
+                    " but an expression was expected of type int"
         in
         debug_type_out @@ "infer_unary = " ^ s_typ_raw res;
         res
@@ -338,7 +340,7 @@ let rec infer tenv e =
                     infer tenv x
                 | x::xs ->
                     let (tenv, t) = infer tenv x in
-                    if t <> TUnit then error (snd x) "expression should have type unit";
+                    if not (equal t TUnit) then error (snd x) @@ "expression should have type unit at type '" ^ s_typ t ^ "'";
                     loop tenv xs
             in
             let (_, t) = loop tenv el in
