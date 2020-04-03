@@ -449,10 +449,8 @@ let parse_program pars =
             let e = parse_id_def true pars in
             aux (e :: acc) pars
     in
-    let pos = get_pos pars in
-    let el = aux [] pars in
-    let res = make_expr (ESeq el) pos in
-    debug_parse_out @@ "parse_program: " ^ s_expr_src res;
+    let res = aux [] pars in
+    debug_parse_out "parse_program";
     res
 
 let parse toks =

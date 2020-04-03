@@ -10,10 +10,11 @@ let load_file filename =
 let load (env, tenv) filename =
     try
         let text = load_file filename in
-        let e = Parser.parse @@ Lexer.lexer filename text in
-        let (ntenv, t) = Type.infer tenv e in
-        let (nenv, v) = Eval.eval env e in
-        (nenv, ntenv)
+        let el = Parser.parse @@ Lexer.lexer filename text in
+        List.fold_left (fun (env, tenv) e ->
+            let (tenv, t) = Type.infer tenv e in
+            let (env, v) = Eval.eval env e in
+            (env, tenv)) (env, tenv) el
     with
         | Error (pos, msg) -> print_endline @@ s_pos pos ^ "Error: " ^ msg; (env, tenv)
         | Sys_error s -> print_endline s; (env, tenv)
