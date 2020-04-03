@@ -67,10 +67,10 @@ let () =
         Test.test !verbose
     else if !do_test_print then
         Test.test_print !verbose
-    else if !filenames <> [] then
+    else if !filenames <> [] then begin
         let (nenv, ntenv) = List.fold_left (fun e filename -> load e filename) (env, tenv) !filenames in
         if !interactive then
             read_print_eval_loop !verbose nenv ntenv
-    else
+    end else
         read_print_eval_loop !verbose env tenv
 
