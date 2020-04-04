@@ -131,9 +131,9 @@ let parser_test_texts = [
     ("_ = if 1 then 2",         "[(ELetRec (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), EUnit))))]");
     ("_ = if \n 1 \n then \n 2 \n else \n 3",
                                 "[(ELetRec (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))]");
-    ("_ = fn x -> x",           "[(ELetRec (\"_\", (ELambda (\"x\", (EId \"x\")))))]");
-    ("_ = fn x ->\n x",         "[(ELetRec (\"_\", (ELambda (\"x\", (EId \"x\")))))]");
-    ("_ = fn () -> 0",          "[(ELetRec (\"_\", (ELambda (\"()\", (ELit (Int 0))))))]");
+    ("_ = fn x -> x",           "[(ELetRec (\"_\", (ELambda ((EId \"x\"), (EId \"x\")))))]");
+    ("_ = fn x ->\n x",         "[(ELetRec (\"_\", (ELambda ((EId \"x\"), (EId \"x\")))))]");
+    ("_ = fn () -> 0",          "[(ELetRec (\"_\", (ELambda (EUnit, (ELit (Int 0))))))]");
     ("_ = 1 ? 2 : 3",           "[(ELetRec (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))]");
     ("_ = 1 ?\n 2\n :\n 3",     "[(ELetRec (\"_\", (ECond ((ELit (Int 1)), (ELit (Int 2)), (ELit (Int 3))))))]");
     ("_ = 1 + 2",               "[(ELetRec (\"_\", (EBinary (BinAdd, (ELit (Int 1)), (ELit (Int 2))))))]");
@@ -161,8 +161,8 @@ let parser_test_texts = [
     ("_ = 'a'",                 "[(ELetRec (\"_\", (ELit (Char 'a'))))]");
     ("_ = \"abc\"",             "[(ELetRec (\"_\", (ELit (String \"abc\"))))]");
     ("_ = (23)",                "[(ELetRec (\"_\", (EParen (ELit (Int 23)))))]");
-    ("id x = x",                "[(ELetRec (\"id\", (ELambda (\"x\", (EId \"x\")))))]");
-    ("add x y = x + y",         "[(ELetRec (\"add\", (ELambda (\"x\", (ELambda (\"y\", (EBinary (BinAdd, (EId \"x\"), (EId \"y\")))))))))]");
+    ("id x = x",                "[(ELetRec (\"id\", (ELambda ((EId \"x\"), (EId \"x\")))))]");
+    ("add x y = x + y",         "[(ELetRec (\"add\", (ELambda ((EId \"x\"), (ELambda ((EId \"y\"), (EBinary (BinAdd, (EId \"x\"), (EId \"y\")))))))))]");
 ]
 
 let parser_test verbose =
