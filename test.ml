@@ -141,8 +141,7 @@ let parser_test_texts = [
     ("_ = 1 - 2 * 3 + 4",       "[(ELetRec (\"_\", (EBinary (BinAdd, (EBinary (BinSub, (ELit (Int 1)), (EBinary (BinMul, (ELit (Int 2)), (ELit (Int 3)))))), (ELit (Int 4))))))]");
     ("_ = 1 - 2 < 3 - 4",       "[(ELetRec (\"_\", (EBinary (BinLT, (EBinary (BinSub, (ELit (Int 1)), (ELit (Int 2)))), (EBinary (BinSub, (ELit (Int 3)), (ELit (Int 4))))))))]");
     ("_ = 1 :: 2 :: 3", "[(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (ELit (Int 3))))))))]");
-    ("_ = 1 :: 2 :: [3]",
-        "[(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))]");
+    ("_ = 1 :: 2 :: [3]",       "[(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))]");
     ("_ = 1 :: 2 :: []",
         "[(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), ENull))))))]");
     ("_ = foo ()",              "[(ELetRec (\"_\", (EApply ((EId \"foo\"), EUnit))))]");
@@ -156,13 +155,14 @@ let parser_test_texts = [
     ("_ = -11",                 "[(ELetRec (\"_\", (EUnary (UMinus, (ELit (Int 11))))))]");
     ("_ = !2",                  "[(ELetRec (\"_\", (EUnary (UNot, (ELit (Int 2))))))]");
     ("_ = a",                   "[(ELetRec (\"_\", (EId \"a\")))]");
-    ("_ = [1,2,3]",
-        "[(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))]");
+    ("_ = [1,2,3]",             "[(ELetRec (\"_\", (EBinary (BinCons, (ELit (Int 1)), (EBinary (BinCons, (ELit (Int 2)), (EBinary (BinCons, (ELit (Int 3)), ENull))))))))]");
     ("_ = [ ]",                 "[(ELetRec (\"_\", ENull))]");
     ("_ = []",                  "[(ELetRec (\"_\", ENull))]");
     ("_ = 'a'",                 "[(ELetRec (\"_\", (ELit (Char 'a'))))]");
     ("_ = \"abc\"",             "[(ELetRec (\"_\", (ELit (String \"abc\"))))]");
     ("_ = (23)",                "[(ELetRec (\"_\", (EParen (ELit (Int 23)))))]");
+    ("id x = x",                "[(ELetRec (\"id\", (ELambda (\"x\", (EId \"x\")))))]");
+    ("add x y = x + y",         "[(ELetRec (\"add\", (ELambda (\"x\", (ELambda (\"y\", (EBinary (BinAdd, (EId \"x\"), (EId \"y\")))))))))]");
 ]
 
 let parser_test verbose =

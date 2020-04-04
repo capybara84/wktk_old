@@ -2,7 +2,7 @@
 program
     = {id_def}
 id_def
-    = ID '=' expr
+    = ID {params} '=' expr
 
 expr
     = let_expr
