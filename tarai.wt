@@ -1,5 +1,5 @@
-tarai = fn x y z -> {
-//    puts "tarai "; putn x; puts " "; putn y; puts " "; putn z; nl ()
+tarai x y z = {
+    puts "tarai "; putn x; puts " "; putn y; puts " "; putn z; nl ()
     if x <= y then
         y
     else
@@ -7,7 +7,7 @@ tarai = fn x y z -> {
 }
 
 _ = {
-    putn (tarai 13 7 0)
+    putn (tarai 8 7 0)
     nl ()
 }
 
