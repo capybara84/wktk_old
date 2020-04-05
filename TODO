@@ -1,7 +1,7 @@
 - add test
 - tuple
     - param
-    - value
+    * value
     - let
 - type decl
 - variant

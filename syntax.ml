@@ -48,12 +48,15 @@ type expr_decl =
 
 and expr = expr_decl * source_pos
 
+type tenv = (type_schema ref) Env.t
+
 type value =
     | VUnit | VNull | VBool of bool | VInt of int | VChar of char
     | VFloat of float | VString of string
     | VTuple of value list | VCons of value * value
-    | VClosure of expr * expr * (value ref) Env.t
-    | VBuiltin of (source_pos -> value -> value)
+    | VClosure of expr * expr * env
+    | VBuiltin of (source_pos -> env -> value -> (env * value))
+and env = (value ref) Env.t
 
 let error pos msg = raise (Error (pos, msg))
 
@@ -133,7 +136,7 @@ let s_typ ty =
                         incr counter;
                         n
                 in
-                (3, "'" ^ int_to_alpha y)
+                (5, "'" ^ int_to_alpha y)
             | TVar (_, {contents = Some t}) ->
                 (3, to_s n t)
         in
@@ -154,7 +157,7 @@ let s_typ_raw ty =
                 let s2 = to_s 0 t2 in
                 (1, s1 ^ " -> " ^ s2)
             | TVar (x, {contents = None}) ->
-                (3, "'" ^ string_of_int x)
+                (5, "'" ^ string_of_int x)
             | TVar (_, {contents = Some t}) ->
                 (3, to_s n t ^ "!")
         in

@@ -176,7 +176,7 @@ let rec eval env e =
                     let new_env = Env.extend x (ref arg_part) old_env in
                     eval new_env body
                 | VBuiltin fn ->
-                    (env, fn pos arg_part)
+                    fn pos env arg_part
                 | v -> error pos @@ "application of non-function: " ^ s_value v
             in
             (env, v)
