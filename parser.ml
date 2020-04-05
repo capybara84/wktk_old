@@ -71,6 +71,7 @@ let is_apply e pars =
     | (EApply _, _)
     | (EId _, _) ->
         (match peek_token pars with
+            | Null
             | Id _
             | Lit _
             | LParen

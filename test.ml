@@ -163,6 +163,8 @@ let parser_test_texts = [
     ("_ = (23)",                "[(ELetRec (\"_\", (EParen (ELit (Int 23)))))]");
     ("id x = x",                "[(ELetRec (\"id\", (ELambda ((EId \"x\"), (EId \"x\")))))]");
     ("add x y = x + y",         "[(ELetRec (\"add\", (ELambda ((EId \"x\"), (ELambda ((EId \"y\"), (EBinary (BinAdd, (EId \"x\"), (EId \"y\")))))))))]");
+    ("_ = (1,2)",               "[(ELetRec (\"_\", (ETuple [(ELit (Int 1)); (ELit (Int 2))])))]");
+    ("_ = (3,'a')",             "[(ELetRec (\"_\", (ETuple [(ELit (Int 3)); (ELit (Char 'a'))])))]");
 ]
 
 let parser_test verbose =
