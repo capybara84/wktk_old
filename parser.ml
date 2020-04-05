@@ -412,9 +412,7 @@ and parse_expr pars =
 
 (*
 params
-    = {param}
-param
-    = ID | '_' | '()' | '(' param {',' param} ')'
+    = {ID | '_' | '()'}
 *)
 and parse_params acc pars =
     debug_parse_in @@ "parse_params: " ^ s_token_src_list pars.toks;

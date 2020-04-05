@@ -1,5 +1,8 @@
 - add test
 - tuple
+    - param
+    - value
+    - let
 - type decl
 - variant
 - typedef

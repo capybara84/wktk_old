@@ -19,9 +19,7 @@ if_expr
 fn_expr
     | FN params '->' expr
 params
-    = {param}
-param
-    = ID | '_' | '()' | '(' param {',' param} ')'
+    = {ID | '_' | '()'}
 comp_expr
     = '{' {expr} '}'
 

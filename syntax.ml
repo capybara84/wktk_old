@@ -117,9 +117,9 @@ let s_typ ty =
     let rec to_s n ty =
         let (m, str) =
             match ty with
-            | TUnit -> (3, "unit") | TBool -> (3, "bool") | TInt -> (3, "int") | TChar -> (3, "char")
-            | TFloat -> (3, "float") | TString -> (3, "string")
-            | TTuple tl -> (3, s_list (to_s 0) " * " tl)
+            | TUnit -> (5, "unit") | TBool -> (5, "bool") | TInt -> (5, "int") | TChar -> (5, "char")
+            | TFloat -> (5, "float") | TString -> (5, "string")
+            | TTuple tl -> (3, s_list (to_s 4) " * " tl)
             | TList t -> (3, to_s 0 t ^ " list")
             | TFun (t1, t2) ->
                 let s1 = to_s 1 t1 in
@@ -145,9 +145,9 @@ let s_typ_raw ty =
     let rec to_s n ty =
         let (m, str) =
             match ty with
-            | TUnit -> (3, "unit") | TBool -> (3, "bool") | TInt -> (3, "int") | TChar -> (3, "char")
-            | TFloat -> (3, "float") | TString -> (3, "string")
-            | TTuple tl -> (3, s_list (to_s 0) " * " tl)
+            | TUnit -> (5, "unit") | TBool -> (5, "bool") | TInt -> (5, "int") | TChar -> (5, "char")
+            | TFloat -> (5, "float") | TString -> (5, "string")
+            | TTuple tl -> (3, s_list (to_s 4) " * " tl)
             | TList t -> (3, to_s 0 t ^ " list")
             | TFun (t1, t2) ->
                 let s1 = to_s 1 t1 in
@@ -203,7 +203,7 @@ let rec s_value = function
     | VFloat f -> string_of_float f
     | VString s -> s
     | VTuple vl -> "(" ^ s_list s_value ", " vl ^ ")"
-    | VCons (car, cdr) -> s_value car ^ "::" ^ s_value cdr
+    | VCons (car, cdr) -> "(" ^ s_value car ^ "::" ^ s_value cdr ^ ")"
     | VClosure _ -> "<closure>"
     | VBuiltin _ -> "<builtin>"
 
