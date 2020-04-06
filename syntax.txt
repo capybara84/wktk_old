@@ -2,7 +2,7 @@
 program
     = {id_def}
 id_def
-    = ID '=' expr
+    = ID {params} '=' expr
 
 expr
     = let_expr
@@ -19,10 +19,12 @@ if_expr
 fn_expr
     | FN params '->' expr
 params
-    = {ID|'_'|'()'}
+    = {ID | '_' | '()'}
 comp_expr
     = '{' {expr} '}'
 
+cond_expr
+    = bin_expr ['?' expr ':' expr]
 bin_expr
     = apply_expr {bin_op apply_expr}
 apply_expr
@@ -32,7 +34,7 @@ unary_expr
 simple_expr
     = ID
     | BOOL_LIT | INT_LIT | CHAR_LIT | FLOAT_LIT | STRING_LIT 
-    | '(' expr ')' | list_expr | '[]'
+    | list_expr | '[]' | '( expr {',' expr} ')'
 list_expr
     = '[' [expr {',' expr}] ']'
 

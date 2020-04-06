@@ -29,9 +29,16 @@ let rec eval env e =
         | (VChar l, VChar r) -> (l = r)
         | (VFloat l, VFloat r) -> (l = r)
         | (VString l, VString r) -> (l = r)
+        | (VTuple xl, VTuple yl) -> equal_tuple pos (xl, yl)
         | ((VCons _ as lhs), (VCons _ as rhs)) -> list_equal pos (lhs, rhs)
         | (VCons _, VNull) | (VNull, VCons _) -> false
         | _ -> error pos "type error (equal)"
+    and equal_tuple pos = function
+        | ([], []) -> true
+        | (_, []) | ([], _) -> false
+        | (x::xs, y::ys) ->
+            if not (eval_equal pos (x, y)) then false
+            else equal_tuple pos (xs, ys)
     and list_equal pos = function
         | (VNull, VNull) -> true
         | (VCons _, VNull) | (VNull, VCons _) -> false
@@ -117,6 +124,9 @@ let rec eval env e =
                 with Not_found -> error pos @@ "'" ^ id ^ "' not found"
             in
             (env, v)
+        | (ETuple el, _) ->
+            debug_eval @@ "eval tuple " ^ s_expr e;
+            (env, VTuple (List.map (fun e -> let (_, v) = eval env e in v) el))
         | (EParen e, _) ->
             debug_eval @@ "eval paren " ^ s_expr e;
             eval env e
@@ -150,7 +160,7 @@ let rec eval env e =
             else
                 eval env else_e
         | (ELambda (arg, body), _) ->
-            debug_eval @@ "eval lambda " ^ arg ^ " -> " ^ s_expr body;
+            debug_eval @@ "eval lambda " ^ s_expr arg ^ " -> " ^ s_expr body;
             (env, VClosure (arg, body, env))
         | (EApply (fn, arg), pos) ->
             debug_eval @@ "eval apply " ^ s_expr fn ^ ", " ^ s_expr arg;
@@ -158,15 +168,15 @@ let rec eval env e =
             let (_, arg_part) = eval env arg in
             let (_, v) =
                 match fn_part with
-                | VClosure ("_", body, old_env) ->
+                | VClosure ((EId "_", _), body, old_env) ->
                     eval old_env body
-                | VClosure ("()", body, old_env) ->
+                | VClosure ((EUnit, _), body, old_env) ->
                     eval old_env body
-                | VClosure (x, body, old_env) ->
+                | VClosure ((EId x, _), body, old_env) ->
                     let new_env = Env.extend x (ref arg_part) old_env in
                     eval new_env body
                 | VBuiltin fn ->
-                    (env, fn pos arg_part)
+                    fn pos env arg_part
                 | v -> error pos @@ "application of non-function: " ^ s_value v
             in
             (env, v)

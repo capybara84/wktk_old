@@ -19,7 +19,7 @@ type token = token_decl * source_pos
 
 type typ =
     | TUnit | TBool | TInt | TChar | TFloat | TString
-    | TList of typ
+    | TTuple of typ list | TList of typ
     | TFun of typ * typ
     | TVar of int * typ option ref
 and type_schema = {
@@ -35,11 +35,12 @@ type expr_decl =
     | ENull | EUnit
     | ELit of lit
     | EId of string
+    | ETuple of expr list
     | EParen of expr
     | EUnary of unop * expr
     | EBinary of binop * expr * expr
     | ECond of expr * expr * expr
-    | ELambda of string * expr
+    | ELambda of expr * expr
     | EApply of expr * expr
     | ELet of string * expr
     | ELetRec of string * expr
@@ -47,12 +48,15 @@ type expr_decl =
 
 and expr = expr_decl * source_pos
 
+type tenv = (type_schema ref) Env.t
+
 type value =
     | VUnit | VNull | VBool of bool | VInt of int | VChar of char
     | VFloat of float | VString of string
-    | VCons of value * value
-    | VClosure of string * expr * (value ref) Env.t
-    | VBuiltin of (source_pos -> value -> value)
+    | VTuple of value list | VCons of value * value
+    | VClosure of expr * expr * env
+    | VBuiltin of (source_pos -> env -> value -> (env * value))
+and env = (value ref) Env.t
 
 let error pos msg = raise (Error (pos, msg))
 
@@ -114,25 +118,11 @@ let s_typ ty =
     let counter = ref 0 in
     let dic = ref [] in
     let rec to_s n ty =
-(*
-        let s_typ_list tl =
-            let rec aux = function
-                | [] -> ""
-                | x::[] -> to_s 0 x
-                | x::xs ->
-                    let s = to_s 0 x in
-                    s ^ ", " ^ aux xs
-            in
-            match tl with
-            | [] -> ""
-            | x::[] -> to_s 0 x ^ " "
-            | _::_ -> "(" ^ aux tl ^ ") " 
-        in
-*)
         let (m, str) =
             match ty with
-            | TUnit -> (3, "unit") | TBool -> (3, "bool") | TInt -> (3, "int") | TChar -> (3, "char")
-            | TFloat -> (3, "float") | TString -> (3, "string")
+            | TUnit -> (5, "unit") | TBool -> (5, "bool") | TInt -> (5, "int") | TChar -> (5, "char")
+            | TFloat -> (5, "float") | TString -> (5, "string")
+            | TTuple tl -> (3, s_list (to_s 4) " * " tl)
             | TList t -> (3, to_s 0 t ^ " list")
             | TFun (t1, t2) ->
                 let s1 = to_s 1 t1 in
@@ -146,7 +136,7 @@ let s_typ ty =
                         incr counter;
                         n
                 in
-                (3, "'" ^ int_to_alpha y)
+                (5, "'" ^ int_to_alpha y)
             | TVar (_, {contents = Some t}) ->
                 (3, to_s n t)
         in
@@ -156,32 +146,18 @@ let s_typ ty =
 
 let s_typ_raw ty =
     let rec to_s n ty =
-(*
-        let s_typ_list tl =
-            let rec aux = function
-                | [] -> ""
-                | x::[] -> to_s 0 x
-                | x::xs ->
-                    let s = to_s 0 x in
-                    s ^ ", " ^ aux xs
-            in
-            match tl with
-            | [] -> ""
-            | x::[] -> to_s 0 x ^ " "
-            | _::_ -> "(" ^ aux tl ^ ") " 
-        in
-*)
         let (m, str) =
             match ty with
-            | TUnit -> (3, "unit") | TBool -> (3, "bool") | TInt -> (3, "int") | TChar -> (3, "char")
-            | TFloat -> (3, "float") | TString -> (3, "string")
+            | TUnit -> (5, "unit") | TBool -> (5, "bool") | TInt -> (5, "int") | TChar -> (5, "char")
+            | TFloat -> (5, "float") | TString -> (5, "string")
+            | TTuple tl -> (3, s_list (to_s 4) " * " tl)
             | TList t -> (3, to_s 0 t ^ " list")
             | TFun (t1, t2) ->
                 let s1 = to_s 1 t1 in
                 let s2 = to_s 0 t2 in
                 (1, s1 ^ " -> " ^ s2)
             | TVar (x, {contents = None}) ->
-                (3, "'" ^ string_of_int x)
+                (5, "'" ^ string_of_int x)
             | TVar (_, {contents = Some t}) ->
                 (3, to_s n t ^ "!")
         in
@@ -190,12 +166,7 @@ let s_typ_raw ty =
     in to_s (-1) ty
 
 let s_type_schema ts =
-    let rec s_list = function
-        | [] -> ""
-        | x::[] -> string_of_int x
-        | x::xs -> string_of_int x ^ "," ^ s_list xs
-    in
-    "{ vars:[" ^ s_list ts.vars ^ "], body:" ^ s_typ_raw ts.body ^ " }"
+    "{ vars:[" ^ s_list string_of_int "," ts.vars ^ "], body:" ^ s_typ_raw ts.body ^ " }"
 
 let s_binop = function
     | BinAdd -> "+" | BinSub -> "-" | BinMul -> "*" | BinDiv -> "/" | BinMod -> "%"
@@ -207,11 +178,12 @@ let s_unop = function UNot -> "!" | UMinus -> "-"
 let rec s_expr = function
     | (ENull, _) -> "[]" | (EUnit, _) -> "()"
     | (ELit l, _) -> s_lit l | (EId s, _) -> s
+    | (ETuple el, _) -> "(" ^ s_list s_expr ", " el ^ ")"
     | (EParen e, _) -> "(" ^ s_expr e ^ ")"
     | (EUnary (op, e), _) -> "(unary '" ^ s_unop op ^ "' " ^ s_expr e ^ ")"
     | (EBinary (op, l, r), _) -> "(binary '" ^ s_binop op ^ "' " ^ s_expr l ^ " " ^ s_expr r ^ ")"
     | (ECond (c, t, e), _) -> "(cond " ^ s_expr c ^ " then " ^ s_expr t ^ " else " ^ s_expr e ^ ")"
-    | (ELambda (a, b), _) -> "(lambda " ^ a ^ " -> " ^ s_expr b ^ ")"
+    | (ELambda (a, b), _) -> "(lambda " ^ s_expr a ^ " -> " ^ s_expr b ^ ")"
     | (EApply (f, a), _) -> "(apply " ^ s_expr f ^ " " ^ s_expr a ^ ")"
     | (ELet (s, e), _) -> "(let " ^ s ^ " = " ^ s_expr e ^ ")"
     | (ELetRec (s, e), _) -> "(letrec " ^ s ^ " = " ^ s_expr e ^ ")"
@@ -233,10 +205,10 @@ let rec s_value = function
     | VChar c -> String.make 1 c
     | VFloat f -> string_of_float f
     | VString s -> s
-    | VCons (car, cdr) -> s_value car ^ "::" ^ s_value cdr
+    | VTuple vl -> "(" ^ s_list s_value ", " vl ^ ")"
+    | VCons (car, cdr) -> "(" ^ s_value car ^ "::" ^ s_value cdr ^ ")"
     | VClosure _ -> "<closure>"
     | VBuiltin _ -> "<builtin>"
-
 
 let s_lit_src = function
     | Bool b -> "Bool " ^ string_of_bool b
@@ -270,11 +242,12 @@ let s_unop_src = function UNot -> "UNot" | UMinus -> "UMinus"
 let rec s_expr_src = function
     | (ENull, _) -> "ENull" | (EUnit, _) -> "EUnit"
     | (ELit l, _) -> "(ELit (" ^ s_lit_src l ^ "))" | (EId s, _) -> "(EId " ^ quote s ^ ")"
+    | (ETuple el, _) -> "(ETuple [" ^ s_list s_expr_src "; " el ^ "])"
     | (EParen e, _) -> "(EParen " ^ s_expr_src e ^ ")"
     | (EUnary (op, e), _) -> "(EUnary (" ^ s_unop_src op ^ ", " ^ s_expr_src e ^ "))"
     | (EBinary (op, l, r), _) -> "(EBinary (" ^ s_binop_src op ^ ", " ^ s_expr_src l ^ ", " ^ s_expr_src r ^ "))"
     | (ECond (c, t, e), _) -> "(ECond (" ^ s_expr_src c ^ ", " ^ s_expr_src t ^ ", " ^ s_expr_src e ^ "))"
-    | (ELambda (a, b), _) -> "(ELambda (" ^ quote a ^ ", " ^ s_expr_src b ^ "))"
+    | (ELambda (a, b), _) -> "(ELambda (" ^ s_expr_src a ^ ", " ^ s_expr_src b ^ "))"
     | (EApply (f, a), _) -> "(EApply (" ^ s_expr_src f ^ ", " ^ s_expr_src a ^ "))"
     | (ELet (s, e), _) -> "(ELet (" ^ quote s ^ ", " ^ s_expr_src e ^ "))"
     | (ELetRec (s, e), _) -> "(ELetRec (" ^ quote s ^ ", " ^ s_expr_src e ^ "))"

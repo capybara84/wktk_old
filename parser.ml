@@ -71,6 +71,7 @@ let is_apply e pars =
     | (EApply _, _)
     | (EId _, _) ->
         (match peek_token pars with
+            | Null
             | Id _
             | Lit _
             | LParen
@@ -155,9 +156,9 @@ and parse_id_expr id pos pars =
 
 (*
 simple_expr
-    = ID
+    = id_expr
     | BOOL_LIT | INT_LIT | CHAR_LIT | FLOAT_LIT | STRING_LIT 
-    | '(' expr ')' | list_expr | '[]'
+    | list_expr | '[]' | '(' expr {',' expr} ')'
 *)
 and parse_simple_expr pars =
     debug_parse_in @@ "parse_simple_expr: " ^ s_token_src_list pars.toks;
@@ -181,8 +182,26 @@ and parse_simple_expr pars =
             next_token pars;
             skip_newline pars;
             let expr = parse_expr pars in
-            expect pars RParen;
-            make_expr (EParen expr) pos
+            if peek_token pars = Comma then begin
+                let rec loop lst =
+                    let e = parse_expr pars in
+                    if peek_token pars = Comma then begin
+                        next_token pars;
+                        skip_newline pars;
+                        loop (e :: lst)
+                    end else
+                        List.rev (e :: lst)
+                in
+                let pos = get_pos pars in
+                next_token pars;
+                skip_newline pars;
+                let e2 = loop [] in
+                expect pars RParen;
+                make_expr (ETuple (expr::e2)) pos
+            end else begin
+                expect pars RParen;
+                make_expr (EParen expr) pos
+            end
         | Eof ->
             debug_parse "EOF";
             raise End_of_file
@@ -321,7 +340,7 @@ and parse_fn_expr pars =
     expect pars RArrow;
     skip_newline pars;
     let body = parse_expr pars in
-    let res = List.fold_right (fun a b -> (ELambda (a, b), pos)) ids body in
+    let res = List.fold_right (fun a b -> make_expr (ELambda (a, b)) pos) ids body in
     debug_parse_out @@ "parse_fn_expr: " ^ s_expr_src res;
     res
 
@@ -394,26 +413,27 @@ and parse_expr pars =
 
 (*
 params
-    = {ID|'_'|'()'}
+    = {ID | '_' | '()'}
 *)
 and parse_params acc pars =
     debug_parse_in @@ "parse_params: " ^ s_token_src_list pars.toks;
     let res =
+        let pos = get_pos pars in
         match peek_token pars with
         | Unit ->
             next_token pars;
-            parse_params ("()" :: acc) pars
+            parse_params ((EUnit, pos) :: acc) pars
         | Id id ->
             next_token pars;
-            parse_params (id :: acc) pars
+            parse_params ((EId id, pos) :: acc) pars
         | _ -> List.rev acc
     in
-    debug_parse_out @@ "parse_params: [" ^ s_list id ";" res ^ "]";
+    debug_parse_out @@ "parse_params: [" ^ s_list s_expr ";" res ^ "]";
     res
 
 (*
 id_def
-    = ID '=' expr
+    = ID {params} '=' expr
 *)
 and parse_id_def global pars =
     debug_parse_in @@ "parse_id_def: " ^ s_token_src_list pars.toks;
@@ -422,13 +442,17 @@ and parse_id_def global pars =
         match peek_token pars with
         | Id id ->
             next_token pars;
+            let params = parse_params [] pars in
             expect pars Eq;
             skip_newline pars;
             let body = parse_expr pars in
-            if global then
-                make_expr (ELetRec (id, body)) pos
-            else
-                make_expr (ELet (id, body)) pos
+            begin
+                match params with
+                | [] when not global -> make_expr (ELet (id, body)) pos
+                | [] when global -> make_expr (ELetRec (id, body)) pos
+                | _ -> 
+                    make_expr (ELetRec (id, List.fold_right (fun a b -> make_expr (ELambda (a, b)) pos) params body)) pos
+            end
         | _ -> parse_error pars "expect identifier"
     in
     debug_parse_out @@ "parse_id_def: " ^ s_expr_src res;

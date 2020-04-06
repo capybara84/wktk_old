@@ -40,6 +40,8 @@ let rec equal t1 t2 =
     | (TUnit, TUnit) | (TBool, TBool) | (TInt, TInt) | (TChar, TChar)
     | (TFloat, TFloat) | (TString, TString)
     | (TList TChar, TString) | (TString, TList TChar) -> true
+    | (TTuple tl1, TTuple tl2) -> list_equal (tl1, tl2)
+    | (TList t1, TList t2) -> equal t1 t2
     | (TFun (t11, t12), TFun (t21, t22)) ->
         equal t11 t21 && equal t21 t22
     | (TVar (n, {contents = None}), TVar (m, {contents = None})) ->
@@ -52,7 +54,6 @@ let rec equal t1 t2 =
     | (_, TVar (_, {contents = Some t2'})) ->
         equal t1 t2'
     | _ -> false
-(*
 and list_equal = function
     | ([], []) -> true
     | (_, []) | ([], _) -> false
@@ -60,9 +61,11 @@ and list_equal = function
         if equal x y then
             list_equal (xs, ys)
         else false
-*)
 
 let rec unwrap_var free_vars = function
+    | TTuple tl ->
+        let (free_vars, new_tl) = unwrap_tl_var free_vars [] tl in
+        (free_vars, TTuple new_tl)
     | TList ty ->
         let (free_vars, unwrapped_t) = unwrap_var free_vars ty in
         (free_vars, TList unwrapped_t)
@@ -79,13 +82,11 @@ let rec unwrap_var free_vars = function
         let (free_vars, new_t) = unwrap_var free_vars t in
         (free_vars, new_t)
     | t -> (free_vars, t)
-(*
 and unwrap_tl_var free_vars new_tl = function
     | [] -> (free_vars, List.rev new_tl)
     | x::xs ->
         let (free_vars, t) = unwrap_var free_vars x in
         unwrap_tl_var free_vars (t::new_tl) xs
-*)
 
 let create_poly_type ty =
     let (free_vars, unwrapped_type) = unwrap_var [] ty in
@@ -100,6 +101,7 @@ let create_alpha_equivalent ts =
             fresh_vars (n::res_vars) ((x, ty)::res_map) xs
     in
     let rec subst map = function
+        | TTuple tl -> TTuple (List.map (subst map) tl)
         | TList t -> TList (subst map t)
         | TFun (t1, t2) -> TFun (subst map t1, subst map t2)
         | TVar (_, {contents = Some t}) -> subst map t
@@ -133,6 +135,7 @@ let rec occurs_in_type t t2 =
     if type_var_equal t t2 then true
     else
         match t2 with
+        | TTuple tl -> occurs_in t tl
         | TList t' -> occurs_in_type t t'
         | TFun (tf1, tf2) -> occurs_in t [tf1;tf2]
         | _ -> false
@@ -169,6 +172,8 @@ let rec unify t1 t2 pos =
     (match (t1, t2) with
     | (TUnit, TUnit) | (TBool, TBool) | (TInt, TInt) | (TChar, TChar) | (TFloat, TFloat)
     | (TString, TString) | (TList TChar, TString) | (TString, TList TChar) -> ()
+    | (TTuple tll, TTuple tlr) when List.length tll = List.length tlr ->
+        List.iter2 (fun x y -> unify x y pos) tll tlr
     | (TList tl, TList tr) ->
         unify tl tr pos
     | (TFun (t11, t12), TFun (t21, t22)) ->
@@ -273,6 +278,9 @@ let rec infer tenv e =
             let ts = (try !(Env.lookup s tenv) with Not_found -> error pos @@ "'" ^ s ^ "' not found") in
             let new_ts = create_alpha_equivalent ts in
             (tenv, new_ts.body)
+        | (ETuple el, _) ->
+            debug_type @@ "infer tuple " ^ s_expr e;
+            (tenv, TTuple (List.map (fun x -> let (_, t) = infer tenv x in t) el))
         | (EParen e, _) ->
             debug_type @@ "infer paren " ^ s_expr e;
             infer tenv e
@@ -296,22 +304,23 @@ let rec infer tenv e =
             let (_, t_else) = infer tenv else_e in
             unify t_then t_else pos;
             (tenv, t_then)
-        | (ELambda ("()", body), _) ->
+        | (ELambda ((EUnit, _), body), _) ->
             debug_type @@ "infer lambda () -> " ^ s_expr body;
             let (_, t_body) = infer tenv body in
             (tenv, TFun (TUnit, t_body))
-        | (ELambda ("_", body), pos) ->
+        | (ELambda ((EId "_", _), body), pos) ->
             debug_type @@ "infer lambda _ -> " ^ s_expr body;
             let t_arg = new_tvar () in
             let (_, t_body) = infer tenv body in
             (tenv, TFun (t_arg, t_body))
-        | (ELambda (arg, body), pos) ->
+        | (ELambda ((EId arg, _), body), pos) ->
             debug_type @@ "infer lambda " ^ arg  ^ " -> " ^ s_expr body;
             let t_arg = new_tvar () in
             let ts = new_type_schema t_arg in
             let tenv = Env.extend arg (ref ts) tenv in
             let (_, t_body) = infer tenv body in
             (tenv, TFun (t_arg, t_body))
+        | (ELambda _, pos) -> error pos "lambda syntax error"
         | (EApply (fn, arg), pos) ->
             debug_type @@ "infer apply " ^ s_expr fn ^ ", " ^ s_expr arg;
             let (_, t_fn) = infer tenv fn in

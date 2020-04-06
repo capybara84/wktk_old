@@ -1,0 +1,13 @@
+tak x y z = {
+//    puts "tak "; putn x; puts " "; putn y; puts " "; putn z; nl ()
+    if x <= y then
+        z
+    else
+        tak (tak (x-1) y z) (tak (y-1) z x) (tak (z-1) x y)
+}
+
+_ = {
+    putn (tak 12 6 0)
+    nl ()
+}
+
