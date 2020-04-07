@@ -62,6 +62,12 @@ type value =
     | VBuiltin of (source_pos -> env -> value -> (env * value))
 and env = (value ref) Env.t
 
+type symtab = {
+    mutable env : env;
+    mutable tenv : tenv;
+}
+
+let make_table env tenv = { env = env; tenv = tenv }
 
 
 let error pos msg = raise (Error (pos, msg))

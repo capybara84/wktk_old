@@ -71,10 +71,9 @@ and builtins_list =
     ]
 
 let init () =
-    let add_symbol (env, tenv) (name, ty, v) =
-        let tenv = Env.extend name (ref (Type.new_type_schema ty)) tenv in
-        let env = Env.extend name (ref v) env in
-        (env, tenv)
-    in
-    List.fold_left (fun env bs -> add_symbol env bs) ([], []) builtins_list
+    List.fold_left (
+        fun tab (name, ty, v) ->
+            Symbol.add_symbol tab name ty v)
+        (make_table [] [])
+        builtins_list
 

@@ -7,21 +7,21 @@ let load_file filename =
     close_in ic;
     text
 
-let load (env, tenv) filename =
+let load tab filename =
     try
         let text = load_file filename in
         let el = Parser.parse @@ Lexer.lexer filename text in
-        List.fold_left (fun (env, tenv) e ->
-            let (tenv, t) = Type.infer tenv e in
-            let (env, v) = Eval.eval env e in
-            (env, tenv)) (env, tenv) el
+        List.fold_left (fun tab e ->
+            let (tenv, t) = Type.infer tab.tenv e in
+            let (env, v) = Eval.eval tab.env e in
+            make_table env tenv) tab el
     with
-        | Error (pos, msg) -> print_endline @@ s_pos pos ^ "Error: " ^ msg; (env, tenv)
-        | Sys_error s -> print_endline s; (env, tenv)
-        | End_of_file -> (env, tenv)
+        | Error (pos, msg) -> print_endline @@ s_pos pos ^ "Error: " ^ msg; tab
+        | Sys_error s -> print_endline s; tab
+        | End_of_file -> tab
 
 
-let rec read_eval_print_loop verbose env tenv =
+let rec read_eval_print_loop verbose tab =
     try
         print_string "> ";
         flush stdout;
@@ -32,14 +32,14 @@ let rec read_eval_print_loop verbose env tenv =
             print_endline @@ "-> " ^ s_expr_src e;
             print_endline @@ "-> " ^ s_expr e
         end;
-        let (tenv, t) = Type.infer tenv e in
-        let (env, v) = Eval.eval env e in
+        let (tenv, t) = Type.infer tab.tenv e in
+        let (env, v) = Eval.eval tab.env e in
         print_endline @@ s_value v ^ " : " ^ s_typ t;
-        read_eval_print_loop verbose env tenv
+        read_eval_print_loop verbose (make_table env tenv)
     with
         | Error (pos, msg) ->
             print_endline @@ s_pos pos ^ "Error: " ^ msg;
-            read_eval_print_loop verbose env tenv
+            read_eval_print_loop verbose tab
         | Sys_error s -> print_endline s
         | End_of_file -> ()
 
@@ -62,15 +62,15 @@ let () =
         ]
         (fun name -> filenames := name :: !filenames)
         "usage: wktk [-v]][-t][-tp][-dp][-dt] filename...";
-    let (env, tenv) = Builtins.init () in
+    let tab = Builtins.init () in
     if !do_test then
         Test.test !verbose
     else if !do_test_print then
         Test.test_print !verbose
     else if !filenames <> [] then begin
-        let (nenv, ntenv) = List.fold_left (fun e filename -> load e filename) (env, tenv) !filenames in
+        let tab = List.fold_left (fun e filename -> load e filename) tab !filenames in
         if !interactive then
-            read_eval_print_loop !verbose nenv ntenv
+            read_eval_print_loop !verbose tab
     end else
-        read_eval_print_loop !verbose env tenv
+        read_eval_print_loop !verbose tab
 

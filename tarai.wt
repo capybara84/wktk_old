@@ -7,7 +7,7 @@ tarai x y z = {
 }
 
 _ = {
-    putn (tarai 14 8 0)
+    putn (tarai 8 7 0)
     nl ()
 }
 
