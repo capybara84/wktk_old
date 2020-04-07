@@ -19,6 +19,10 @@ let debug_eval_out s =
     if !debug_scope_flag then
         (decr debug_indent; debug_eval @@ "OUT " ^ s)
 
+let mod_lookup ml s env =
+    (*TODO*)
+    raise Not_found
+
 let rec eval env e =
     debug_eval_in @@ "eval: " ^ s_expr e;
     let rec eval_equal pos = function
@@ -124,6 +128,11 @@ let rec eval env e =
                 with Not_found -> error pos @@ "'" ^ id ^ "' not found"
             in
             (env, v)
+        | (EModId (ml, s), pos) ->
+            let v = try !(mod_lookup ml s env)
+                with Not_found -> error pos @@ "'" ^ s_list id "." ml ^ "." ^ s ^ "' not found"
+            in
+            (env, v)
         | (ETuple el, _) ->
             debug_eval @@ "eval tuple " ^ s_expr e;
             (env, VTuple (List.map (fun e -> let (_, v) = eval env e in v) el))
@@ -196,6 +205,12 @@ let rec eval env e =
             debug_eval @@ "eval seq " ^ s_list s_expr "; " el;
             let (_, v) = eval_list pos env el in
             (env, v)
+        | (EModule mid, _) ->
+            debug_eval @@ "eval module " ^ mid;
+            (env, VUnit)
+        | (EImport (mid, _), _) ->
+            debug_eval @@ "eval import " ^ mid;
+            (env, VUnit)
     in
     debug_eval_out @@ "eval = " ^ s_value @@ snd res;
     res

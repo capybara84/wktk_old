@@ -10,7 +10,8 @@ exception Error of source_pos * string
 type lit = Bool of bool | Int of int | Char of char | Float of float | String of string
 
 type token_decl =
-    | Eof | Newline | Id of string | Lit of lit | Op of string | Let | Rec | If | Then | Else | Fn
+    | Eof | Newline | Id of string | CId of string | Lit of lit | Op of string
+    | Module | Import | As | Let | Rec | If | Then | Else | Fn
     | Semi | Colon | DColon | Comma | Dot | Null | Unit | Vertical | Ques | Eq | LOr | LAnd
     | Eql | Neq | LT | LE | GT | GE | Plus | Minus | Star | Slash | Percent | Not
     | LBrace | RBrace | LParen | RParen | LBracket | RBracket | RArrow
@@ -35,6 +36,7 @@ type expr_decl =
     | ENull | EUnit
     | ELit of lit
     | EId of string
+    | EModId of string list * string
     | ETuple of expr list
     | EParen of expr
     | EUnary of unop * expr
@@ -45,6 +47,8 @@ type expr_decl =
     | ELet of string * expr
     | ELetRec of string * expr
     | ESeq of expr list
+    | EModule of string
+    | EImport of string * string option
 
 and expr = expr_decl * source_pos
 
@@ -57,6 +61,8 @@ type value =
     | VClosure of expr * expr * env
     | VBuiltin of (source_pos -> env -> value -> (env * value))
 and env = (value ref) Env.t
+
+
 
 let error pos msg = raise (Error (pos, msg))
 
@@ -99,7 +105,8 @@ let rec s_list to_s sep = function
 
 
 let s_token = function
-    | Eof -> "<EOF>" | Newline -> "<NEWLINE>" | Id id -> id | Lit l -> s_lit l | Op s -> s
+    | Eof -> "<EOF>" | Newline -> "<NEWLINE>" | Id s -> s | CId s -> s | Lit l -> s_lit l | Op s -> s
+    | Module -> "module" | Import -> "import" | As -> "as"
     | Let -> "let" | Rec -> "rec" | If -> "if" | Then -> "then" | Else -> "else" | Fn -> "fn"
     | Semi -> ";" | Colon -> ":" | DColon -> "::" | Comma -> "," | Dot -> "." | Null -> "[]"
     | Unit -> "()" | Vertical -> "|" | Ques -> "?" | Eq -> "=" | LOr -> "||" | LAnd -> "&&"
@@ -177,7 +184,7 @@ let s_unop = function UNot -> "!" | UMinus -> "-"
 
 let rec s_expr = function
     | (ENull, _) -> "[]" | (EUnit, _) -> "()"
-    | (ELit l, _) -> s_lit l | (EId s, _) -> s
+    | (ELit l, _) -> s_lit l | (EId s, _) -> s | (EModId (ml, s), _) -> s_list id "." ml ^ "." ^ s
     | (ETuple el, _) -> "(" ^ s_list s_expr ", " el ^ ")"
     | (EParen e, _) -> "(" ^ s_expr e ^ ")"
     | (EUnary (op, e), _) -> "(unary '" ^ s_unop op ^ "' " ^ s_expr e ^ ")"
@@ -188,6 +195,9 @@ let rec s_expr = function
     | (ELet (s, e), _) -> "(let " ^ s ^ " = " ^ s_expr e ^ ")"
     | (ELetRec (s, e), _) -> "(letrec " ^ s ^ " = " ^ s_expr e ^ ")"
     | (ESeq el, _) -> "{ " ^ s_exprlist "; " el ^ " }"
+    | (EModule mid, _) -> "(module " ^ mid ^ ")"
+    | (EImport (mid, None), _) -> "(import " ^ mid ^ ")"
+    | (EImport (mid, Some aid), _) -> "(import " ^ mid ^ " as " ^ aid ^ ")"
 and s_exprlist sep = s_list s_expr sep
 
 let s_vlit = function
@@ -218,8 +228,9 @@ let s_lit_src = function
     | String s -> "String " ^ quote @@ escape_str s
 
 let s_token_src = function
-    | Eof -> "Eof" | Newline -> "Newline" | Id id -> "Id " ^ quote id
+    | Eof -> "Eof" | Newline -> "Newline" | Id s -> "Id " ^ quote s | CId s -> "CId " ^ quote s
     | Lit l -> "Lit (" ^ s_lit_src l ^ ")" | Op s -> "Op " ^ quote s
+    | Module -> "Module" | Import -> "Import" | As -> "As"
     | Let -> "Let" | Rec -> "Rec" | If -> "If" | Then -> "Then" | Else -> "Else" | Fn -> "Fn"
     | Semi -> "Semi" | Colon -> "Colon" | DColon -> "DColon" | Comma -> "Comma"
     | Dot -> "Dot" | Null -> "Null" | Unit -> "Unit" | Vertical -> "Vertical"
@@ -242,6 +253,7 @@ let s_unop_src = function UNot -> "UNot" | UMinus -> "UMinus"
 let rec s_expr_src = function
     | (ENull, _) -> "ENull" | (EUnit, _) -> "EUnit"
     | (ELit l, _) -> "(ELit (" ^ s_lit_src l ^ "))" | (EId s, _) -> "(EId " ^ quote s ^ ")"
+    | (EModId (ml, s), _) -> "(EModId ([" ^ s_list quote ";" ml ^ "]," ^ quote s ^ "))"
     | (ETuple el, _) -> "(ETuple [" ^ s_list s_expr_src "; " el ^ "])"
     | (EParen e, _) -> "(EParen " ^ s_expr_src e ^ ")"
     | (EUnary (op, e), _) -> "(EUnary (" ^ s_unop_src op ^ ", " ^ s_expr_src e ^ "))"
@@ -252,5 +264,8 @@ let rec s_expr_src = function
     | (ELet (s, e), _) -> "(ELet (" ^ quote s ^ ", " ^ s_expr_src e ^ "))"
     | (ELetRec (s, e), _) -> "(ELetRec (" ^ quote s ^ ", " ^ s_expr_src e ^ "))"
     | (ESeq el, _) -> "(ESeq " ^ s_exprlist_src el ^ ")"
+    | (EModule mid, _) -> "(EModule " ^ quote mid ^ ")"
+    | (EImport (mid, None), _) -> "(EImport (" ^ quote mid ^ ", None))"
+    | (EImport (mid, Some aid), _) -> "(EImport (" ^ quote mid ^ ", Some " ^ quote aid ^ "))"
 and s_exprlist_src el = "[" ^ s_list s_expr_src "; " el ^ "]"
 

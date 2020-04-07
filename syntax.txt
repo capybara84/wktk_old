@@ -1,6 +1,14 @@
 
 program
-    = {id_def}
+    = {decl | ';' | NEWLINE}
+decl
+    = module
+    | import
+    | id_def
+module
+    = MODULE CID
+import
+    = IMPORT CID [AS CID]
 id_def
     = ID {params} '=' expr
 
@@ -32,11 +40,13 @@ apply_expr
 unary_expr
     = [unary_op] simple_expr
 simple_expr
-    = ID
+    = id_Expr
     | BOOL_LIT | INT_LIT | CHAR_LIT | FLOAT_LIT | STRING_LIT 
     | list_expr | '[]' | '( expr {',' expr} ')'
 list_expr
     = '[' [expr {',' expr}] ']'
+id_expr
+    = {CID '.'} ID
 
 bin_op = '||' | '&&'
     | '==' | '!=' | '<' | '<=' | '>' | '>='

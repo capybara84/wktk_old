@@ -164,6 +164,9 @@ let is_tvar t =
     | TVar _ -> true
     | _ -> false
 
+let mod_lookup ml s tenv =
+    (*TODO*)
+    raise Not_found
 
 let rec unify t1 t2 pos =
     debug_type_in @@ "unify: " ^ s_typ_raw t1 ^ ", " ^ s_typ_raw t2;
@@ -278,6 +281,15 @@ let rec infer tenv e =
             let ts = (try !(Env.lookup s tenv) with Not_found -> error pos @@ "'" ^ s ^ "' not found") in
             let new_ts = create_alpha_equivalent ts in
             (tenv, new_ts.body)
+        | (EModId (ml, s), pos) ->
+            debug_type @@ "infer ModId " ^ s_list id "." ml ^ "." ^ s;
+            let ts =
+                try
+                    mod_lookup ml s tenv
+                with Not_found -> error pos @@ "'" ^ s_list id "." ml ^ "' not found"
+            in
+            let new_ts = create_alpha_equivalent ts in
+            (tenv, new_ts.body)
         | (ETuple el, _) ->
             debug_type @@ "infer tuple " ^ s_expr e;
             (tenv, TTuple (List.map (fun x -> let (_, t) = infer tenv x in t) el))
@@ -354,6 +366,12 @@ let rec infer tenv e =
             in
             let (_, t) = loop tenv el in
             (tenv, t)
+        | (EModule mid, _) ->
+            debug_type @@ "infer module " ^ mid;
+            (tenv, TUnit)
+        | (EImport (mid, _), _) ->
+            debug_type @@ "infer import " ^ mid;
+            (tenv, TUnit)
     in
     debug_type_out @@ "infer = " ^ s_typ_raw (snd res);
     res

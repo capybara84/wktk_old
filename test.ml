@@ -29,7 +29,7 @@ let lexer_test_text = "
 
 // comment
 
-/* 11 */ let if then else fn
+/* 11 */ module import as let if then else fn
 /* 12 */ ; : :: , . [] | ? = || && == != < <= > >= + - * / % ! ()
 /* 13 */ { } ( ) [ ] -> ,= ++ =/=
 "
@@ -37,7 +37,7 @@ let lexer_test_tokens = [
     (Newline, {filename="test";line=1;col=1});
     (Newline, {filename="test";line=4;col=3});
     (Id "identifier", {filename="test";line=6;col=10});
-    (Id "Ident", {filename="test";line=6;col=21});
+    (CId "Ident", {filename="test";line=6;col=21});
     (Lit (Int 12345), {filename="test";line=6;col=27});
     (Newline, {filename="test";line=6;col=32});
     (Lit (Char 'a'), {filename="test";line=7;col=10});
@@ -45,12 +45,15 @@ let lexer_test_tokens = [
     (Lit (String "abc\n"), {filename="test";line=7;col=19});
     (Newline, {filename="test";line=7;col=26});
     (Newline, {filename="test";line=9;col=1});
-    (Let, {filename="test";line=11;col=10});
-    (If, {filename="test";line=11;col=14});
-    (Then, {filename="test";line=11;col=17});
-    (Else, {filename="test";line=11;col=22});
-    (Fn, {filename="test";line=11;col=27});
-    (Newline, {filename="test";line=11;col=29});
+    (Module, {filename="test";line=11;col=10});
+    (Import, {filename="test";line=11;col=17});
+    (As, {filename="test";line=11;col=24});
+    (Let, {filename="test";line=11;col=27});
+    (If, {filename="test";line=11;col=31});
+    (Then, {filename="test";line=11;col=34});
+    (Else, {filename="test";line=11;col=39});
+    (Fn, {filename="test";line=11;col=44});
+    (Newline, {filename="test";line=11;col=46});
     (Semi, {filename="test";line=12;col=10});
     (Colon, {filename="test";line=12;col=12});
     (DColon, {filename="test";line=12;col=14});
@@ -166,6 +169,11 @@ let parser_test_texts = [
     ("_ = (1,2)",               "[(ELetRec (\"_\", (ETuple [(ELit (Int 1)); (ELit (Int 2))])))]");
     ("_ = (3,'a')",             "[(ELetRec (\"_\", (ETuple [(ELit (Int 3)); (ELit (Char 'a'))])))]");
     ("_ = (1,(2,3))",           "[(ELetRec (\"_\", (ETuple [(ELit (Int 1)); (ETuple [(ELit (Int 2)); (ELit (Int 3))])])))]");
+    ("module A",                "[(EModule \"A\")]");
+    ("import A",                "[(EImport (\"A\", None))]");
+    ("import A as B",           "[(EImport (\"A\", Some \"B\"))]");
+    ("_ = A.b",                 "[(ELetRec (\"_\", (EModId ([\"A\"],\"b\"))))]");
+    ("_ = A.B.c",               "[(ELetRec (\"_\", (EModId ([\"A\";\"B\"],\"c\"))))]");
 ]
 
 let parser_test verbose =

@@ -53,7 +53,7 @@ let lexer filename text =
         (Buffer.contents buffer, lex)
     in
     let lex_ident lex =
-        let is_ident = function 'a'..'z' | 'A'..'Z' | '0'..'9' | '_'  -> true | _ -> false in
+        let is_ident = function 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' | '\''  -> true | _ -> false in
         cut_token is_ident lex
     in
     let lex_number lex =
@@ -154,9 +154,13 @@ let lexer filename text =
             | '0'..'9' ->
                 let (t, lex) = lex_number lex in
                 get_tokens lex @@ make_tokens pos t
-            | 'A'..'Z' | 'a'..'z' | '_' ->
+            | 'A'..'Z' ->
+                let (id, lex) = lex_ident lex in
+                get_tokens lex @@ make_tokens pos (CId id)
+            | 'a'..'z' | '_' ->
                 let (id, lex) = lex_ident lex in
                 let t = match id with
+                    | "module" -> Module | "import" -> Import | "as" -> As
                     | "let" -> Let | "rec" -> Rec | "if" -> If | "then" -> Then | "else" -> Else
                     | "fn" -> Fn | _ -> Id id
                 in
