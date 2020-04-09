@@ -278,7 +278,14 @@ let rec infer tenv e =
             (tenv, TString)
         | (EId s, pos) ->
             debug_type @@ "infer Id " ^ s;
-            let ts = (try !(Env.lookup s tenv) with Not_found -> error pos @@ "'" ^ s ^ "' not found") in
+            let ts =
+                (try
+                    !(Env.lookup s tenv)
+                with Not_found ->
+                    (try
+                        !(Symbol.lookup_default_type s)
+                    with Not_found -> error pos @@ "'" ^ s ^ "' not found"))
+            in
             let new_ts = create_alpha_equivalent ts in
             (tenv, new_ts.body)
         | (EModId (ml, s), pos) ->
@@ -368,11 +375,18 @@ let rec infer tenv e =
             (tenv, t)
         | (EModule mid, _) ->
             debug_type @@ "infer module " ^ mid;
-            (tenv, TUnit)
+            let modu = Symbol.set_module mid in
+            (modu.tenv, TUnit)
         | (EImport (mid, _), _) ->
             debug_type @@ "infer import " ^ mid;
             (tenv, TUnit)
     in
     debug_type_out @@ "infer = " ^ s_typ_raw (snd res);
     res
+
+let infer_top e =
+    let tenv = Symbol.get_current_tenv () in
+    let (tenv, t) = infer tenv e in
+    Symbol.set_current_tenv tenv;
+    t
 

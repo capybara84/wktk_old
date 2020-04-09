@@ -122,10 +122,15 @@ let rec eval env e =
         | (ELit (String s), _) ->
             debug_eval @@ "eval string";
             (env, VString s)
-        | (EId id, pos) ->
-            debug_eval @@ "eval Id " ^ id;
-            let v = try !(Env.lookup id env)
-                with Not_found -> error pos @@ "'" ^ id ^ "' not found"
+        | (EId s, pos) ->
+            debug_eval @@ "eval Id " ^ s;
+            let v =
+                (try
+                    !(Env.lookup s env)
+                with Not_found ->
+                    (try
+                        !(Symbol.lookup_default s)
+                    with Not_found -> error pos @@ "'" ^ s ^ "' not found"))
             in
             (env, v)
         | (EModId (ml, s), pos) ->
@@ -214,3 +219,10 @@ let rec eval env e =
     in
     debug_eval_out @@ "eval = " ^ s_value @@ snd res;
     res
+
+let eval_top e =
+    let env = Symbol.get_current_env () in
+    let (env, v) = eval env e in
+    Symbol.set_current_env env;
+    v
+

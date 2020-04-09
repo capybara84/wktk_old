@@ -52,7 +52,7 @@ type expr_decl =
 
 and expr = expr_decl * source_pos
 
-type tenv = (type_schema ref) Env.t
+type tenv = type_schema ref Env.t
 
 type value =
     | VUnit | VNull | VBool of bool | VInt of int | VChar of char
@@ -60,14 +60,13 @@ type value =
     | VTuple of value list | VCons of value * value
     | VClosure of expr * expr * env
     | VBuiltin of (source_pos -> env -> value -> (env * value))
-and env = (value ref) Env.t
+and env = value ref Env.t
 
 type symtab = {
+    module_name : string;
     mutable env : env;
     mutable tenv : tenv;
 }
-
-let make_table env tenv = { env = env; tenv = tenv }
 
 
 let error pos msg = raise (Error (pos, msg))

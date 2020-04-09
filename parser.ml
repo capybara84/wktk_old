@@ -565,6 +565,25 @@ let parse_program pars =
     debug_parse_out "parse_program";
     res
 
+(*
+top_level
+    = module
+    | import
+    | expr
+*)
+let parse_top_level toks =
+    debug_parse_in @@ "parse_top_level: " ^ s_token_src_list toks;
+    let pars = create_parser toks in
+    let res =
+        match peek_token pars with
+        | Module -> parse_module pars
+        | Import -> parse_import pars
+        | _ -> parse_expr pars
+    in
+    debug_parse_out "parse_top_level";
+    res
+
+
 let parse toks =
     let pars = create_parser toks in
     parse_program pars

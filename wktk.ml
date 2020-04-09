@@ -7,39 +7,40 @@ let load_file filename =
     close_in ic;
     text
 
-let load tab filename =
+let load_source filename =
     try
         let text = load_file filename in
         let el = Parser.parse @@ Lexer.lexer filename text in
-        List.fold_left (fun tab e ->
-            let (tenv, t) = Type.infer tab.tenv e in
-            let (env, v) = Eval.eval tab.env e in
-            make_table env tenv) tab el
+        List.iter (fun e ->
+                (*TODO warning when not unit *)
+                ignore @@ Type.infer_top e;
+                ignore @@ Eval.eval_top e
+            ) el
     with
-        | Error (pos, msg) -> print_endline @@ s_pos pos ^ "Error: " ^ msg; tab
-        | Sys_error s -> print_endline s; tab
-        | End_of_file -> tab
+        | Error (pos, msg) -> print_endline @@ s_pos pos ^ "Error: " ^ msg
+        | Sys_error s -> print_endline s
+        | End_of_file -> ()
 
 
-let rec read_eval_print_loop verbose tab =
+let rec read_eval_print_loop verbose =
     try
         print_string "> ";
         flush stdout;
         let toks = Lexer.lexer "" @@ input_line stdin in
         if verbose then print_endline @@ s_token_src_list toks;
-        let e = Parser.parse_expr @@ Parser.create_parser toks in
+        let e = Parser.parse_top_level toks in
         if verbose then begin
             print_endline @@ "-> " ^ s_expr_src e;
             print_endline @@ "-> " ^ s_expr e
         end;
-        let (tenv, t) = Type.infer tab.tenv e in
-        let (env, v) = Eval.eval tab.env e in
+        let t = Type.infer_top e in
+        let v = Eval.eval_top e in
         print_endline @@ s_value v ^ " : " ^ s_typ t;
-        read_eval_print_loop verbose (make_table env tenv)
+        read_eval_print_loop verbose
     with
         | Error (pos, msg) ->
             print_endline @@ s_pos pos ^ "Error: " ^ msg;
-            read_eval_print_loop verbose tab
+            read_eval_print_loop verbose
         | Sys_error s -> print_endline s
         | End_of_file -> ()
 
@@ -62,15 +63,17 @@ let () =
         ]
         (fun name -> filenames := name :: !filenames)
         "usage: wktk [-v]][-t][-tp][-dp][-dt] filename...";
-    let tab = Builtins.init () in
+
+    Builtins.init ();
+
     if !do_test then
         Test.test !verbose
     else if !do_test_print then
         Test.test_print !verbose
     else if !filenames <> [] then begin
-        let tab = List.fold_left (fun e filename -> load e filename) tab !filenames in
+        List.iter load_source !filenames;
         if !interactive then
-            read_eval_print_loop !verbose tab
+            read_eval_print_loop !verbose
     end else
-        read_eval_print_loop !verbose tab
+        read_eval_print_loop !verbose
 
