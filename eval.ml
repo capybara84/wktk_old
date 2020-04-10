@@ -20,8 +20,13 @@ let debug_eval_out s =
         (decr debug_indent; debug_eval @@ "OUT " ^ s)
 
 let mod_lookup ml s env =
-    (*TODO*)
-    raise Not_found
+    match ml with
+    | [x] ->
+        let modu = Symbol.lookup_module x in
+        !(Env.lookup s modu.env)
+    | _ ->
+        (*TODO*)
+        raise Not_found
 
 let rec eval env e =
     debug_eval_in @@ "eval: " ^ s_expr e;
@@ -134,7 +139,9 @@ let rec eval env e =
             in
             (env, v)
         | (EModId (ml, s), pos) ->
-            let v = try !(mod_lookup ml s env)
+            let v =
+                try
+                    mod_lookup ml s env
                 with Not_found -> error pos @@ "'" ^ s_list id "." ml ^ "." ^ s ^ "' not found"
             in
             (env, v)

@@ -165,8 +165,13 @@ let is_tvar t =
     | _ -> false
 
 let mod_lookup ml s tenv =
-    (*TODO*)
-    raise Not_found
+    match ml with
+    | [x] ->
+        let modu = Symbol.lookup_module x in
+        !(Env.lookup s modu.tenv)
+    | _ ->
+        (*TODO*)
+        raise Not_found
 
 let rec unify t1 t2 pos =
     debug_type_in @@ "unify: " ^ s_typ_raw t1 ^ ", " ^ s_typ_raw t2;
@@ -293,7 +298,7 @@ let rec infer tenv e =
             let ts =
                 try
                     mod_lookup ml s tenv
-                with Not_found -> error pos @@ "'" ^ s_list id "." ml ^ "' not found"
+                with Not_found -> error pos @@ "'" ^ s_list id "." ml ^ "." ^ s ^ "' not found"
             in
             let new_ts = create_alpha_equivalent ts in
             (tenv, new_ts.body)
