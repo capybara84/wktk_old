@@ -4,7 +4,7 @@ fact n =
 
 loop s e =
     if s < e then {
-        puts "fact "; putn s; puts " = "; putn (fact s); nl()
+        put "fact "; putn s; put " = "; putn (fact s); nl()
         loop (s+1) e
     }
 

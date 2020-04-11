@@ -1,13 +1,12 @@
-- add test
 - tuple
     - param
     * value
     - let
+* module
 - type decl
 - variant
 - typedef
 - pattern
-* module
 - library
 - lazy
 - stream

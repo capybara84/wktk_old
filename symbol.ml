@@ -48,7 +48,7 @@ let insert_default name ts value =
 
 let print_modules () =
     let show_sym (id, ts) = 
-        print_endline @@ " " ^ id ^ " :: " ^ s_typ !ts.body
+        print_endline @@ " " ^ id ^ " :: " ^ s_type_schema !ts
     in
     let show (id, symtab) =
         print_endline ("module " ^ id);

@@ -365,9 +365,10 @@ let eval_test_texts = [
     ("A.x", VInt 10);
     ("B.x", VInt 20);
     ("import List", VUnit);
-    ("List.length [1,2,3]", VInt 3);
+    ("List.length [1,2]", VInt 2);
     ("import List as L", VUnit);
     ("L.length [1,2,3]", VInt 3);
+    ("L.length \"abcd\"", VInt 4);
 ]
 
 

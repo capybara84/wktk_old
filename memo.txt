@@ -1,0 +1,49 @@
+
+fact : int -> int
+fact a = match a {
+    | 1 -> 1
+    | n -> n * fact (n-1)
+}
+fact a = match a { | 1 -> 1 | n -> n * fact (n-1) }
+fact = { | 1 -> 1 | n -> n * fact (n-1) }
+fact : int -> int
+fact = {
+    | 1 -> 1
+    | n -> n * fact (n-1)
+}
+
+length : ['a] -> int
+length = {
+   | [] -> 0
+   | _::xs when x = 1 -> 1 + length xs
+}
+
+add : number -> number -> number
+add x y = x + y
+inc : int -> int
+inc = add 1
+
+(++) : ['a] -> ['a] -> ['a]
+(++) x y = List.append x y
+
+infixr 0 $
+($) : ('a -> 'b) -> 'a -> 'b
+($) f x = f x
+
+lexer : string -> token list
+lexer text = {
+    let get_tokens lex acc = {
+        if is_end lex then List.rev acc
+        else match peek lex {
+            | ' ' | '\t' | '\r' -> get_tokens (next lex) acc
+            | '\n' -> get_tokens (skip_newline lex) $ NewLine
+            | '0'..'9' ->
+                {
+                    let (t, lex) = lex_number lex
+                    get_tokens lex t
+                }
+            ...
+        }
+    }
+    get_tokens (init_lex text) []
+}

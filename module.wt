@@ -1,0 +1,19 @@
+module Main
+x = 1
+
+module A
+x = 10
+
+module B
+x = 20
+
+module A
+y = 11
+
+module Main
+_ = {
+    put "x = "; putn x; nl()
+    put "A.x = "; putn A.x; nl()
+    put "B.x = "; putn B.x; nl()
+    modules()
+}

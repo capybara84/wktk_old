@@ -205,21 +205,14 @@ let rec s_expr = function
     | (EImport (mid, Some aid), _) -> "(import " ^ mid ^ " as " ^ aid ^ ")"
 and s_exprlist sep = s_list s_expr sep
 
-let s_vlit = function
-    | Bool b -> string_of_bool b
-    | Int i -> string_of_int i
-    | Char c -> String.make 1 c
-    | Float f -> string_of_float f
-    | String s -> s
-
 let rec s_value = function
     | VUnit -> "()"
     | VNull -> "[]"
     | VBool b -> string_of_bool b
     | VInt n -> string_of_int n
-    | VChar c -> String.make 1 c
+    | VChar c -> "'" ^ String.make 1 c ^ "'"
     | VFloat f -> string_of_float f
-    | VString s -> s
+    | VString s -> quote s
     | VTuple vl -> "(" ^ s_list s_value ", " vl ^ ")"
     | VCons (car, cdr) -> "(" ^ s_value car ^ "::" ^ s_value cdr ^ ")"
     | VClosure _ -> "<closure>"
@@ -273,4 +266,17 @@ let rec s_expr_src = function
     | (EImport (mid, None), _) -> "(EImport (" ^ quote mid ^ ", None))"
     | (EImport (mid, Some aid), _) -> "(EImport (" ^ quote mid ^ ", Some " ^ quote aid ^ "))"
 and s_exprlist_src el = "[" ^ s_list s_expr_src "; " el ^ "]"
+
+let rec s_value_src = function
+    | VUnit -> "VUnit"
+    | VNull -> "VNull"
+    | VBool b -> "VBool " ^ string_of_bool b
+    | VInt n -> "VInt " ^ string_of_int n
+    | VChar c -> "VChar '" ^ String.make 1 c ^ "'"
+    | VFloat f -> "VFloat " ^ string_of_float f
+    | VString s -> "VString " ^ quote s
+    | VTuple vl -> "VTuple [" ^ s_list s_value_src "; " vl ^ "]"
+    | VCons (car, cdr) -> "VCons (" ^ s_value_src car ^ ", " ^ s_value_src cdr ^ ")"
+    | VClosure _ -> "VClosure"
+    | VBuiltin _ -> "VBuiltin"
 

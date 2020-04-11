@@ -1,0 +1,179 @@
+type id = string
+
+type exp = Eint int | Ebool bool | Symbol id
+    | Add (exp, exp) |  Sub (exp, exp) | Mul (exp, exp) | Div (exp, exp)
+    | Eq (exp, exp) | Lt (exp, exp) | Le (exp, exp) | And (exp, exp)
+    | Or (exp, exp) | Not exp | Minus exp | If (exp, exp, exp)
+    | Let (id, exp, exp) | Letrec (id, exp, exp) | Fn (id, exp)
+    | Apply (exp, exp)
+
+type 't env_t = [(id, 't)]
+
+type value =
+    | VInt int
+    | VBool bool
+    | Closure (id, exp, value env_t)
+    | RecClosure (id, id, exp, value env_t)
+
+env_extend env id value = (id, value) :: env
+env_lookup env id = List.assoc id env
+
+exp_to_str = {
+    | Eint n -> "Eint " ++ string_of_int n
+    | Ebool b -> "Ebool " ++ string_of_bool b
+    | Symbol id -> "Symbol \"" ++ id ++ "\""
+    | Add (x, y) -> "Add (" ++ exp_to_str x ++ ", " ++ exp_to_str y ++ ")"
+    | Sub (x, y) -> "Sub (" ++ exp_to_str x ++ ", " ++ exp_to_str y ++ ")"
+    | Mul (x, y) -> "Mul (" ++ exp_to_str x ++ ", " ++ exp_to_str y ++ ")"
+    | Div (x, y) -> "Div (" ++ exp_to_str x ++ ", " ++ exp_to_str y ++ ")"
+    | Eq (x, y) -> "Eq (" ++ exp_to_str x ++ ", " ++ exp_to_str y ++ ")"
+    | Lt (x, y) -> "Lt (" ++ exp_to_str x ++ ", " ++ exp_to_str y ++ ")"
+    | Le (x, y) -> "Le (" ++ exp_to_str x ++ ", " ++ exp_to_str y ++ ")"
+    | And (x, y) -> "And (" ++ exp_to_str x ++ ", " ++ exp_to_str y ++ ")"
+    | Or (x, y) -> "Or (" ++ exp_to_str x ++ ", " ++ exp_to_str y ++ ")"
+    | Not e -> "Not " ++ exp_to_str e
+    | Minus e -> "Minus " ++ exp_to_str e
+    | If (c, t, e) -> "If (" ++ exp_to_str c ++ ", " ++ exp_to_str t ++ ", " ++ exp_to_str e ++ ")"
+    | Let (id, e, b) -> "Let (\"" ++ id ++ "\", " ++ exp_to_str e ++ ", " ++ exp_to_str b ++ ")"
+    | Letrec (id, e, b) -> "Letrec (\"" ++ id ++ "\", " ++ exp_to_str e ++ ", " ++ exp_to_str b ++ ")"
+    | Fn (a, b) -> "Fn (\"" ++ a ++ "\", " ++ exp_to_str b ++ ")"
+    | Apply (f, a) -> "Apply (" ++ exp_to_str f ++ ", " ++ exp_to_str a ++ ")"
+}
+
+value_to_str = {
+    | VInt n -> string_of_int n
+    | VBool b -> string_of_bool b
+    | Closure _ -> "<closure>"
+    | RecClosure _ -> "<closure>"
+}
+
+int_add = {
+    | (VInt a, VInt b) -> VInt (a + b)
+    | _ -> failwith "int expected"
+}
+
+int_sub = {
+    | (VInt a, VInt b) -> VInt (a - b)
+    | _ -> failwith "int expected"
+}
+
+int_mul = {
+    | (VInt a, VInt b) -> VInt (a * b)
+    | _ -> failwith "int expected"
+}
+
+int_div = {
+    | (VInt a, VInt b) -> VInt (a / b)
+    | _ -> failwith "int expected"
+}
+
+equal = {
+    | (VInt a, VInt b) -> VBool (a = b)
+    | (VBool a, VBool b) -> VBool (a = b)
+    | _ -> failwith "int/bool expected"
+}
+
+less =  {
+    | (VInt a, VInt b) -> VBool (a < b)
+    | _ -> failwith "int expected"
+}
+
+lesseq = {
+    | (VInt a, VInt b) -> VBool (a <= b)
+    | _ -> failwith "int expected"
+}
+
+bool_not = {
+    | VBool b -> VBool (not b)
+    | _ -> failwith "bool expected"
+}
+
+int_minus = {
+    | VInt n -> VInt (-n)
+    | _ -> failwith "int expected"
+}
+
+eval env = {
+    | Eint n -> VInt n
+    | Ebool b -> VBool b
+    | Symbol x -> env_lookup env x
+    | Add (x, y) -> int_add (eval env x, eval env y)
+    | Sub (x, y) -> int_sub (eval env x, eval env y)
+    | Mul (x, y) -> int_mul (eval env x, eval env y)
+    | Div (x, y) -> int_div (eval env x, eval env y)
+    | Eq (x, y) -> equal (eval env x, eval env y)
+    | Lt (x, y) -> less (eval env x, eval env y)
+    | Le (x, y) -> lesseq (eval env x, eval env y)
+    | Not x -> bool_not (eval env x)
+    | Minus x -> int_minus (eval env x)
+    | And (x, y) ->
+        if eval env x = VBool false then
+            VBool false
+        else
+            eval env y
+    | Or (x, y) ->
+        if eval env x = VBool true then
+            VBool true
+        else
+            eval env y
+    | If (c, t, e) ->
+        match eval env c {
+            | VBool true -> eval env t
+            | VBool false -> eval env e
+            | _ -> failwith "non-boolean"
+        }
+    | Let (id, e, b) ->
+        eval (env_extend env id (eval env e)) b
+    | Letrec (id, fn, body) ->
+        match fn {
+            | Fn (arg, fbody) ->
+                let renv = env_extend env id (RecClosure (id, arg, fbody, env))
+                eval renv body
+            | _ -> failwith "non functional def"
+        }
+    | Fn (p, b) ->
+        Closure (p, b, env)
+    | Apply (fn, arg) ->
+        let closure = eval env fn
+        match closure {
+            | Closure (carg, body, closure_env) ->
+                let varg = eval env arg
+                let app_env = env_extend closure_env carg varg
+                eval app_env body
+            | RecClosure (name, carg, body, closure_env) ->
+                let varg = eval env arg
+                let renv = env_extend closure_env name closure
+                let app_env = env_extend renv carg varg
+                eval app_env body
+            | _ -> failwith "non functional value"
+        }
+}
+
+env0 = []
+
+e1 = Apply (Fn ("y", Add(Symbol "y", Eint 1)), Eint 3)
+
+_ = {
+    puts $ exp_to_str e1
+    puts $ value_to_str $ eval env0 e1
+}
+
+e2 = Apply (Let ("x", Eint 2, Fn ("y", Add (Symbol "y", Symbol "x"))), Eint 3)
+
+_ = {
+    puts $ exp_to_str e2
+    puts $ value_to_str $ eval env0 e2
+}
+
+e3 = Letrec ("fact",
+            (Fn ("x",
+                (If (Le (Symbol "x", Eint 0), Eint 1,
+                    Mul (Symbol "x",
+                        Apply (Symbol "fact", Sub (Symbol "x", Eint 1))))))),
+            Apply (Symbol "fact", Eint 5))
+
+_ = {
+    puts $ exp_to_str e3
+    puts $ value_to_str $ eval env0 e3
+}
+
