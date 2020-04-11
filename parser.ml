@@ -279,7 +279,7 @@ and parse_bin_expr pars =
             let op = token_to_op t in
             next_token pars;
             skip_newline pars;
-            let rhs = parse_expr pars in
+            let rhs = parse_apply_expr pars in
             parse_rhs (make_binop op lhs rhs) pars
         | _ -> lhs
     in
@@ -298,11 +298,13 @@ and parse_cond_expr pars =
     let expr = parse_bin_expr pars in
     let res =
         if peek_token pars = Ques then begin
+            debug_parse "parse_cond_expr Ques";
             next_token pars;
             skip_newline pars;
             let e2 = parse_expr pars in
             skip_newline pars;
             expect pars Colon;
+            debug_parse "parse_cond_expr Colon";
             skip_newline pars;
             let e3 = parse_expr pars in
             make_expr (ECond (expr, e2, e3)) pos

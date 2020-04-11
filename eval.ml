@@ -41,7 +41,11 @@ let rec eval env e =
         | (VTuple xl, VTuple yl) -> equal_tuple pos (xl, yl)
         | ((VCons _ as lhs), (VCons _ as rhs)) -> list_equal pos (lhs, rhs)
         | (VCons _, VNull) | (VNull, VCons _) -> false
-        | _ -> error pos "type error (equal)"
+        | (VString s, (VCons _ as cs))
+        | ((VCons _ as cs), VString s) -> str_equal pos (s, cs)
+        | (VString "", VNull) | (VNull, VString "") -> true
+        | (VString _, VNull) | (VNull, VString _) -> false
+        | (lhs, rhs) -> error pos @@ "type error (equal) " (* ^ s_value_src lhs ^ " & " ^ s_value_src rhs *)
     and equal_tuple pos = function
         | ([], []) -> true
         | (_, []) | ([], _) -> false
@@ -55,6 +59,15 @@ let rec eval env e =
             if not (eval_equal pos (lh, rh)) then false
             else list_equal pos (lt, rt)
         | _ -> failwith "list_equal bug"
+    and str_equal pos = function
+        | ("", VNull) -> true
+        | (_, VNull) -> false
+        | ("", VCons _) -> false
+        | (x, VCons (VChar c, rest)) ->
+            if String.get x 0 <> c then false
+            else
+                str_equal pos ((String.sub x 1 (String.length x - 1)), rest)
+        | _ -> failwith "str_equal bug"
     in
     let eval_unary pos = function
         | (UMinus, VInt n) -> VInt (-n)

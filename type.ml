@@ -182,6 +182,8 @@ let rec unify t1 t2 pos =
     | (TString, TString) | (TList TChar, TString) | (TString, TList TChar) -> ()
     | (TTuple tll, TTuple tlr) when List.length tll = List.length tlr ->
         List.iter2 (fun x y -> unify x y pos) tll tlr
+    | (TList t, TString) | (TString, TList t) ->
+        unify t TChar pos
     | (TList tl, TList tr) ->
         unify tl tr pos
     | (TFun (t11, t12), TFun (t21, t22)) ->
@@ -429,7 +431,6 @@ and load_source filename =
         let el = Parser.parse @@ Lexer.lexer filename text in
         List.iter
             (fun e ->
-                (*TODO warning when not unit *)
                 ignore @@ infer_top e;
                 ignore @@ Eval.eval_top e
             ) el;
