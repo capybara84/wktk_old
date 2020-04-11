@@ -1,5 +1,23 @@
 
 length x =
+    x == [] ? 0 : 1 + length (tl x)
+
+map f x =
+    x == [] ? [] : f (hd x) :: map f (tl x)
+
+append x y =
+    x == [] ? y : (hd x) :: append (tl x) y
+
+reverse x =
+    x == [] ? [] : append (reverse (tl x)) [hd x]
+
+filter p x =
+    x == [] ? []
+            : p (hd x) ? (hd x) :: filter p (tl x)
+                       : filter p (tl x)
+
+/*
+length x =
     if x == [] then 0
     else 1 + length (tl x)
 
@@ -20,4 +38,4 @@ filter p x =
     else if p (hd x) then
         (hd x) :: filter p (tl x)
     else filter p (tl x)
-
+*/

@@ -1,8 +1,13 @@
+- user defined operator
+    - infixl infixr
+    - (op)
+- bulitin op
 - tuple
     - param
     * value
     - let
 * module
+    - module path
 - type decl
 - variant
 - typedef

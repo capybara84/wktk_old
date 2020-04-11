@@ -46,6 +46,10 @@ let fn_snd pos env = function
     | VTuple (_::x::_) -> (env, x)
     | _ -> type_error pos "tuple"
 
+(*
+append = fn x -> fn y -> x == [] ? y : (hd x) :: append (tl x) y
+*)
+
 let fn_env _ env _ =
     List.iter
         (fun e ->
