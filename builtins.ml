@@ -39,8 +39,12 @@ let fn_snd pos env = function
 let fn_env _ env _ =
     List.iter
         (fun e ->
-            print_endline @@ fst e ^ " = " ^ s_value @@ !(snd e)
+            print_endline @@ fst e ^ " = " ^ s_value !(snd e)
         ) env;
+    (env, VUnit)
+
+let fn_modules _ env _ =
+    Symbol.print_modules ();
     (env, VUnit)
 
 let rec fn_builtins _ env _ =
@@ -68,13 +72,11 @@ and builtins_list =
         ("snd", TFun (TTuple (snd_any_type::[snd_type]), snd_type), VBuiltin fn_snd);
         ("env", TFun (TUnit, TUnit), VBuiltin fn_env);
         ("builtins", TFun (TUnit, TUnit), VBuiltin fn_builtins);
+        ("modules", TFun (TUnit, TUnit), VBuiltin fn_modules);
     ]
 
 let init () =
-    let add_symbol (env, tenv) (name, ty, v) =
-        let tenv = Env.extend name (ref (Type.new_type_schema ty)) tenv in
-        let env = Env.extend name (ref v) env in
-        (env, tenv)
-    in
-    List.fold_left (fun env bs -> add_symbol env bs) ([], []) builtins_list
+    List.iter
+        (fun (name, ty, value) -> Symbol.insert_default name (Type.new_type_schema ty) value)
+        builtins_list
 

@@ -29,7 +29,7 @@ let lexer_test_text = "
 
 // comment
 
-/* 11 */ let if then else fn
+/* 11 */ module import as let if then else fn
 /* 12 */ ; : :: , . [] | ? = || && == != < <= > >= + - * / % ! ()
 /* 13 */ { } ( ) [ ] -> ,= ++ =/=
 "
@@ -37,7 +37,7 @@ let lexer_test_tokens = [
     (Newline, {filename="test";line=1;col=1});
     (Newline, {filename="test";line=4;col=3});
     (Id "identifier", {filename="test";line=6;col=10});
-    (Id "Ident", {filename="test";line=6;col=21});
+    (CId "Ident", {filename="test";line=6;col=21});
     (Lit (Int 12345), {filename="test";line=6;col=27});
     (Newline, {filename="test";line=6;col=32});
     (Lit (Char 'a'), {filename="test";line=7;col=10});
@@ -45,12 +45,15 @@ let lexer_test_tokens = [
     (Lit (String "abc\n"), {filename="test";line=7;col=19});
     (Newline, {filename="test";line=7;col=26});
     (Newline, {filename="test";line=9;col=1});
-    (Let, {filename="test";line=11;col=10});
-    (If, {filename="test";line=11;col=14});
-    (Then, {filename="test";line=11;col=17});
-    (Else, {filename="test";line=11;col=22});
-    (Fn, {filename="test";line=11;col=27});
-    (Newline, {filename="test";line=11;col=29});
+    (Module, {filename="test";line=11;col=10});
+    (Import, {filename="test";line=11;col=17});
+    (As, {filename="test";line=11;col=24});
+    (Let, {filename="test";line=11;col=27});
+    (If, {filename="test";line=11;col=31});
+    (Then, {filename="test";line=11;col=34});
+    (Else, {filename="test";line=11;col=39});
+    (Fn, {filename="test";line=11;col=44});
+    (Newline, {filename="test";line=11;col=46});
     (Semi, {filename="test";line=12;col=10});
     (Colon, {filename="test";line=12;col=12});
     (DColon, {filename="test";line=12;col=14});
@@ -166,6 +169,11 @@ let parser_test_texts = [
     ("_ = (1,2)",               "[(ELetRec (\"_\", (ETuple [(ELit (Int 1)); (ELit (Int 2))])))]");
     ("_ = (3,'a')",             "[(ELetRec (\"_\", (ETuple [(ELit (Int 3)); (ELit (Char 'a'))])))]");
     ("_ = (1,(2,3))",           "[(ELetRec (\"_\", (ETuple [(ELit (Int 1)); (ETuple [(ELit (Int 2)); (ELit (Int 3))])])))]");
+    ("module A",                "[(EModule \"A\")]");
+    ("import A",                "[(EImport (\"A\", None))]");
+    ("import A as B",           "[(EImport (\"A\", Some \"B\"))]");
+    ("_ = A.b",                 "[(ELetRec (\"_\", (EModId ([\"A\"],\"b\"))))]");
+    ("_ = A.B.c",               "[(ELetRec (\"_\", (EModId ([\"A\";\"B\"],\"c\"))))]");
 ]
 
 let parser_test verbose =
@@ -346,48 +354,48 @@ let eval_test_texts = [
     ("foo 4", VInt 6);
     ("let rec fact = fn n -> if n < 1 then 1 else n * fact (n-1)", VUnit);
     ("fact 5", VInt 120);
+    ("module A", VUnit);
+    ("let x = 10", VUnit);
+    ("x", VInt 10);
+    ("module B", VUnit);
+    ("let x = 20", VUnit);
+    ("x", VInt 20);
+    ("A.x", VInt 10);
+    ("module Main", VUnit);
+    ("A.x", VInt 10);
+    ("B.x", VInt 20);
+    ("import List", VUnit);
+    ("List.length [1,2,3]", VInt 3);
+    ("import List as L", VUnit);
+    ("L.length [1,2,3]", VInt 3);
 ]
 
-let env_print env =
-    print_string "Env [";
-    let rec aux = function
-        | [] -> ()
-        | x::xs ->
-            Printf.printf "(%s, %s)" (fst x) (s_value !(snd x));
-            aux xs
-    in aux env;
-    print_endline "]"
 
 let eval_test verbose =
     print_string "Eval Test: ";
-    let do_test (env, tenv) (text, expected) =
+    let do_test (text, expected) =
         try
             (*
             print_endline "do_test";
-            env_print env;
             *)
             if verbose then
                 print_endline @@ "text    > " ^ text;
             let toks = L.lexer "test" text in
             if verbose then
                 print_endline @@ "tokens  > " ^ s_token_src_list toks;
-            let e = P.parse_expr @@ P.create_parser toks in
+            let e = P.parse_top_level toks in
             if verbose then
                 print_endline @@ "parsed  > " ^ s_expr_src e;
-            let (new_tenv, t) = Type.infer tenv e in
+            let t = Type.infer_top e in
             if verbose then
                 print_endline @@ "infer   > " ^ s_typ t;
-            let (new_env, v) = Eval.eval env e in
+            let v = Eval.eval_top e in
             if verbose then
                 print_endline @@ "eval    > " ^ s_value v;
             test_eq v expected (s_value v ^ " != " ^ s_value expected);
-            (*
-            env_print new_env;
-            *)
-            (new_env, new_tenv)
-        with Error (pos, msg) -> test_fail @@ (s_pos pos) ^ "Error: " ^ msg; (env, tenv)
+        with Error (pos, msg) -> test_fail @@ (s_pos pos) ^ "Error: " ^ msg
     in
-    ignore @@ List.fold_left (fun env test -> do_test env test) ([],[]) eval_test_texts;
+    List.iter do_test eval_test_texts;
     print_newline ()
 
 

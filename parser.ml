@@ -66,18 +66,9 @@ let expect pars tok =
 
 let is_apply e pars =
     match e with
-    | (EParen _, _)
-    | (ELambda _, _)
-    | (EApply _, _)
-    | (EId _, _) ->
+    | (EParen _, _) | (ELambda _, _) | (EApply _, _) | (EId _, _) | (EModId _, _) ->
         (match peek_token pars with
-            | Null
-            | Id _
-            | Lit _
-            | LParen
-            | LBracket
-            | Unit
-                -> true
+            | Null | Id _ | CId _ | Lit _ | LParen | LBracket | Unit -> true
             | _ -> false)
     | _ -> false
 
@@ -145,11 +136,36 @@ let rec parse_list_expr pars =
 
 (*
 id_expr
-    = ID
+    = mod_name ID
+mod_name = {CID '.'}
 *)
-and parse_id_expr id pos pars =
-    debug_parse_in @@ "parse_id_expr: " ^ id ^ " " ^ s_token_src_list pars.toks;
-    let res = make_expr (EId id) pos
+and parse_id_expr pos pars =
+    debug_parse_in @@ "parse_id_expr: " ^ s_token_src_list pars.toks;
+    let rec parse_module_name acc pars =
+        match peek_token pars with
+        | CId cid ->
+            next_token pars;
+            expect pars Dot;
+            begin match peek_token pars with
+                | CId _ -> parse_module_name (cid::acc) pars
+                | _ -> List.rev (cid::acc)
+            end
+        | _ -> failwith "module_name"
+    in
+    let res =
+        match peek_token pars with
+        | CId _ ->
+            let modname = parse_module_name [] pars in
+            begin match peek_token pars with
+                | Id id ->
+                    next_token pars;
+                    make_expr (EModId (modname, id)) pos
+                | _ -> parse_error pars "missing identifier"
+            end
+        | Id id ->
+            next_token pars;
+            make_expr (EId id) pos
+        | _ -> failwith "id_expr"
     in
     debug_parse_out @@ "parse_id_expr: " ^ s_expr_src res;
     res
@@ -165,7 +181,7 @@ and parse_simple_expr pars =
     let pos = get_pos pars in
     let res =
         match peek_token pars with
-        | Id id ->          next_token pars; parse_id_expr id pos pars
+        | CId _ | Id _ ->   parse_id_expr pos pars
         | LBracket ->       parse_list_expr pars
         | Null ->
             debug_parse "parse_simple_expr Null";
@@ -202,9 +218,6 @@ and parse_simple_expr pars =
                 expect pars RParen;
                 make_expr (EParen expr) pos
             end
-        | Eof ->
-            debug_parse "EOF";
-            raise End_of_file
         | _ -> parse_error pars "syntax error"
     in
     debug_parse_out @@ "parse_simple_expr: " ^ s_expr_src res;
@@ -406,6 +419,7 @@ and parse_expr pars =
         | Fn -> parse_fn_expr pars
         | LBrace -> parse_comp_expr pars
         | Newline | Semi -> next_token pars; parse_expr pars
+        | Eof -> make_expr EUnit (get_pos pars)
         | _ -> parse_cond_expr pars
     in
     debug_parse_out @@ "parse_expr: " ^ s_expr_src res;
@@ -453,29 +467,113 @@ and parse_id_def global pars =
                 | _ -> 
                     make_expr (ELetRec (id, List.fold_right (fun a b -> make_expr (ELambda (a, b)) pos) params body)) pos
             end
-        | _ -> parse_error pars "expect identifier"
+        | _ -> failwith "id_def"
     in
     debug_parse_out @@ "parse_id_def: " ^ s_expr_src res;
     res
 
 (*
+import
+    = IMPORT CID [AS CID]
+*)
+let parse_import pars =
+    debug_parse_in @@ "parse_import: " ^ s_token_src_list pars.toks;
+    let pos = get_pos pars in
+    next_token pars;
+    let res =
+        match peek_token pars with
+        | CId id ->
+            next_token pars;
+            if peek_token pars <> As then
+                make_expr (EImport (id, None)) pos
+            else begin
+                next_token pars;
+                match peek_token pars with
+                | CId aid ->
+                    next_token pars;
+                    make_expr (EImport (id, Some aid)) pos
+                | _ -> parse_error pars "missing alias name"
+            end
+        | _ -> parse_error pars "missing module name"
+    in
+    debug_parse_out @@ "parse_import: " ^ s_expr_src res;
+    res
+
+(*
+module
+    = MODULE CID
+*)
+let parse_module pars =
+    debug_parse_in @@ "parse_module: " ^ s_token_src_list pars.toks;
+    let pos = get_pos pars in
+    next_token pars;
+    let res =
+        match peek_token pars with
+        | CId id ->
+            next_token pars;
+            make_expr (EModule id) pos
+        | _ -> parse_error pars "missing module name"
+    in
+    debug_parse_out @@ "parse_module: " ^ s_expr_src res;
+    res
+
+(*
+decl
+    = module
+    | import
+    | id_def
+*)
+let parse_decl pars =
+    debug_parse_in @@ "parse_decl: " ^ s_token_src_list pars.toks;
+    let res =
+        match peek_token pars with
+        | Module -> parse_module pars
+        | Import -> parse_import pars
+        | Id _ -> parse_id_def true pars
+        | Eof -> make_expr EUnit (get_pos pars)
+        | _ -> parse_error pars "syntax error (expect identifier)"
+    in
+    debug_parse_out @@ "parse_decl: " ^ s_expr_src res;
+    res
+
+(*
 program
-    = {id_def}
+    = {decl | ';' | NEWLINE}
 *)
 let parse_program pars =
     debug_parse_in @@ "parse_program: " ^ s_token_src_list pars.toks;
-    let rec aux acc pars =
-        debug_parse "parse_program aux";
+    let rec loop acc pars =
+        debug_parse "parse_program loop";
         if is_eof pars then List.rev acc
         else if peek_token pars = Semi || peek_token pars = Newline then
-            (next_token pars; aux acc pars)
+            (next_token pars; loop acc pars)
         else
-            let e = parse_id_def true pars in
-            aux (e :: acc) pars
+            let e = parse_decl pars in
+            loop (e :: acc) pars
     in
-    let res = aux [] pars in
+    let res = loop [] pars in
     debug_parse_out "parse_program";
     res
+
+(*
+top_level
+    = module
+    | import
+    | expr
+*)
+let parse_top_level toks =
+    debug_parse_in @@ "parse_top_level: " ^ s_token_src_list toks;
+    let pars = create_parser toks in
+    let res =
+        match peek_token pars with
+        | Module -> parse_module pars
+        | Import -> parse_import pars
+        | Eof -> make_expr EUnit (get_pos pars)
+        | _ -> parse_expr pars
+    in
+    debug_parse_out "parse_top_level";
+    res
+
 
 let parse toks =
     let pars = create_parser toks in
