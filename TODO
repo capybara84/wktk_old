@@ -7,7 +7,7 @@
 - variant
 - typedef
 - pattern
-- module
+* module
 - library
 - lazy
 - stream

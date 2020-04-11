@@ -66,18 +66,9 @@ let expect pars tok =
 
 let is_apply e pars =
     match e with
-    | (EParen _, _)
-    | (ELambda _, _)
-    | (EApply _, _)
-    | (EId _, _) ->
+    | (EParen _, _) | (ELambda _, _) | (EApply _, _) | (EId _, _) | (EModId _, _) ->
         (match peek_token pars with
-            | Null
-            | Id _
-            | Lit _
-            | LParen
-            | LBracket
-            | Unit
-                -> true
+            | Null | Id _ | CId _ | Lit _ | LParen | LBracket | Unit -> true
             | _ -> false)
     | _ -> false
 
@@ -227,9 +218,6 @@ and parse_simple_expr pars =
                 expect pars RParen;
                 make_expr (EParen expr) pos
             end
-        | Eof ->
-            debug_parse "EOF";
-            raise End_of_file
         | _ -> parse_error pars "syntax error"
     in
     debug_parse_out @@ "parse_simple_expr: " ^ s_expr_src res;
@@ -431,6 +419,7 @@ and parse_expr pars =
         | Fn -> parse_fn_expr pars
         | LBrace -> parse_comp_expr pars
         | Newline | Semi -> next_token pars; parse_expr pars
+        | Eof -> make_expr EUnit (get_pos pars)
         | _ -> parse_cond_expr pars
     in
     debug_parse_out @@ "parse_expr: " ^ s_expr_src res;
@@ -541,6 +530,7 @@ let parse_decl pars =
         | Module -> parse_module pars
         | Import -> parse_import pars
         | Id _ -> parse_id_def true pars
+        | Eof -> make_expr EUnit (get_pos pars)
         | _ -> parse_error pars "syntax error (expect identifier)"
     in
     debug_parse_out @@ "parse_decl: " ^ s_expr_src res;
@@ -578,6 +568,7 @@ let parse_top_level toks =
         match peek_token pars with
         | Module -> parse_module pars
         | Import -> parse_import pars
+        | Eof -> make_expr EUnit (get_pos pars)
         | _ -> parse_expr pars
     in
     debug_parse_out "parse_top_level";

@@ -209,6 +209,24 @@ let rec unify t1 t2 pos =
     | (_, _) -> error pos @@ "type mismatch between " ^ s_typ t2 ^ " and " ^ s_typ t1);
     debug_type_out @@ "unify"
 
+let load_file filename =
+    let ic = open_in filename in
+    let n = in_channel_length ic in
+    let text = really_input_string ic n in
+    close_in ic;
+    text
+
+let default_extension = ".wt"
+
+let make_module_name filename =
+    String.capitalize_ascii @@ Filename.chop_suffix (Filename.basename filename) default_extension
+
+let default_directory = "./"
+
+let make_module_filename name =
+    default_directory ^ String.uncapitalize_ascii name ^ default_extension
+
+
 let rec infer tenv e =
     debug_type_in @@ "infer: " ^ s_expr e;
     let infer_unary op t pos =
@@ -382,16 +400,42 @@ let rec infer tenv e =
             debug_type @@ "infer module " ^ mid;
             let modu = Symbol.set_module mid in
             (modu.tenv, TUnit)
-        | (EImport (mid, _), _) ->
-            debug_type @@ "infer import " ^ mid;
+        | (EImport (mid, aid), _) ->
+            debug_type @@ "infer import " ^ mid ^ (match aid with None -> "" | Some id -> " as " ^ id);
+            load_module mid aid;
             (tenv, TUnit)
     in
     debug_type_out @@ "infer = " ^ s_typ_raw (snd res);
     res
 
-let infer_top e =
+and infer_top e =
     let tenv = Symbol.get_current_tenv () in
     let (tenv, t) = infer tenv e in
     Symbol.set_current_tenv tenv;
     t
+
+and load_module mid aid =
+    let modu = Symbol.get_current_module () in
+    let filename = make_module_filename mid in
+    if load_source filename then
+        (match aid with None -> () | Some id -> Symbol.rename_module mid id);
+    Symbol.set_current_module modu
+
+and load_source filename =
+    try
+        let modu_name = make_module_name filename in
+        ignore @@ Symbol.set_module modu_name;
+        let text = load_file filename in
+        let el = Parser.parse @@ Lexer.lexer filename text in
+        List.iter
+            (fun e ->
+                (*TODO warning when not unit *)
+                ignore @@ infer_top e;
+                ignore @@ Eval.eval_top e
+            ) el;
+            true
+    with
+        | Error (pos, msg) -> print_endline @@ s_pos pos ^ "Error: " ^ msg; false
+        | Sys_error s -> print_endline s; false
+
 

@@ -1,27 +1,5 @@
 open Syntax
 
-let load_file filename =
-    let ic = open_in filename in
-    let n = in_channel_length ic in
-    let text = really_input_string ic n in
-    close_in ic;
-    text
-
-let load_source filename =
-    try
-        let text = load_file filename in
-        let el = Parser.parse @@ Lexer.lexer filename text in
-        List.iter (fun e ->
-                (*TODO warning when not unit *)
-                ignore @@ Type.infer_top e;
-                ignore @@ Eval.eval_top e
-            ) el
-    with
-        | Error (pos, msg) -> print_endline @@ s_pos pos ^ "Error: " ^ msg
-        | Sys_error s -> print_endline s
-        | End_of_file -> ()
-
-
 let rec read_eval_print_loop verbose =
     try
         print_string "> ";
@@ -71,7 +49,7 @@ let () =
     else if !do_test_print then
         Test.test_print !verbose
     else if !filenames <> [] then begin
-        List.iter load_source !filenames;
+        List.iter (fun x -> ignore @@ Type.load_source x) !filenames;
         if !interactive then
             read_eval_print_loop !verbose
     end else

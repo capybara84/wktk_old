@@ -44,14 +44,7 @@ let fn_env _ env _ =
     (env, VUnit)
 
 let fn_modules _ env _ =
-    let show_sym (id, ts) = 
-        print_endline @@ " " ^ id ^ " :: " ^ s_typ !ts.body
-    in
-    let show (id, symtab) =
-        print_endline ("module " ^ id);
-        List.iter show_sym symtab.tenv
-    in
-    List.iter show !Symbol.all_modules;
+    Symbol.print_modules ();
     (env, VUnit)
 
 let rec fn_builtins _ env _ =
